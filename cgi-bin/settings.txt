@@ -1,0 +1,6 @@
+# the directory where the program is installed on the windows server
+LOCAL_HOME=C:/Projects/Boeke/cgi-bin
+
+# where the data resides on the windows server
+LOCAL_DATA=C:/CDI Labs
+

@@ -1,0 +1,35 @@
+body
+{
+    font-size:12pt;
+    font-family:Calibri;
+    margin:auto;
+    width:1500px;
+    
+}
+.maintable {  border:white; width:1300px; cell}
+.banner { background-color:lightblue; margin-left:100px; height:100px; text-align:center}
+.status_msg { background-color:#F7F7DF; margin-left:100px; height:30px; text-align:left; }
+.files_list { background-color: white; vertical-align:top;   width:750px; nowrap}
+.functions_list { background-color: white; vertical-align:top; width:750px; border-left: solid 1px lightgray; padding-left:10px; padding-bottom:500px; }
+.popup_dialog
+{
+    display:none;
+    width:300px;
+}
+
+#close
+{
+    display:block;
+    float:right;
+    width:50px;
+    height:30px;
+    background:url(/cdi-html/close.png) no-repeat center center;
+}
+h1 {font-size:1.8em;}
+h2 {font-size:1.5em;}
+h3 {font-size:1.3em;}
+p {font-size:1.0em;}
+
+.slider { width: 250px; }
+
+.rect { background: rgba(255, 255, 255, 0); border:1px solid red; }
