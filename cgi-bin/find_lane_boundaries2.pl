@@ -1,22 +1,5 @@
 #!/usr/bin/perl
 ##c:/perl/bin/perl.exe
- 
-#    find_lane_boundaries2.pl - Finds lane boundaries in the images.
-#
-#    Copyright (C) 2014  Sarah Keegan
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use warnings;
 use strict;
@@ -26,17 +9,12 @@ use File::Copy;
 my $hdri_file = 1; #=0;
 my %im_rot_angles = (-6 => -2, -5 => -1.75, -4 => -1.5, -3 => -1.25, -2 => -1, -1 => -0.75, 0 => 0, 1 => 0.75, 2 => 1, 3 => 1.25, 4 => 1.5, 5 => 1.75, 6 => 2); 
 my $i_range = 6;
-
-my $local_version = 1;
 my $IMAGEMAGICK_DIR;
-if($local_version) { $IMAGEMAGICK_DIR = 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin'; } #'C:/Program Files (x86)/ImageMagick-6.7.8-Q16'; }
-else { $IMAGEMAGICK_DIR = '/local/apps/ImageMagick/6.8.9-4/bin'; }
-
 my $num_lanes; 
 my $gel_txt_file;
 
-if ($#ARGV == 1)
-{ $gel_txt_file = $ARGV[0]; $num_lanes = $ARGV[1]; }
+if ($#ARGV == 2)
+{ $gel_txt_file = $ARGV[0]; $num_lanes = $ARGV[1]; $IMAGEMAGICK_DIR = $ARGV[2]; }
 else { die "Wrong number of arguments...\n"; }
 
 my $gel_image_file_root = $gel_txt_file;

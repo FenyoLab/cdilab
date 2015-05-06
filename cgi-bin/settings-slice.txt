@@ -1,0 +1,12 @@
+# the directory where the program is installed on the server
+LOCAL_HOME=/var/www/cgi-bin/cdi_labs
+
+# where the data resides on the server
+LOCAL_DATA=/var/www/cdilabs_data
+
+#ImageMagick location
+IM_DIR=/local/apps/ImageMagick/6.8.9-4/bin
+
+#OS
+#OS_TYPE=LINUX
+

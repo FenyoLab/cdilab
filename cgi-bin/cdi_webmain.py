@@ -1,8 +1,6 @@
 #!C:\WinPython-32bit-2.7.6.3\python-2.7.6\python
 #!/local/apps/python/2.7.7/bin/python
 
-local_version = True
-
 from datetime import datetime
 import sys
 import os
@@ -18,28 +16,23 @@ from skimage import io
 cgitb.enable()
 from subprocess import Popen, PIPE
 
-try: # Windows needs stdio set for binary mode.
+try: # Windows needs stdio set for binary mode, will pass through if import fails
     import msvcrt
     msvcrt.setmode (0, os.O_BINARY) # stdin  = 0
     msvcrt.setmode (1, os.O_BINARY) # stdout = 1
 except ImportError:
     pass
 
+DEBUG_VERSION = False
 data_folder = 'Data'
 ANNOTATION_FILE_NAME = 'annotation2.png'
+SETTINGS_TABLE = {'LOCAL_HOME':'', 'LOCAL_DATA':'', 'IM_DIR':'', 'OS_TYPE':''}
+settings_file = './settings.txt'
 
-if(local_version):
-    #for cgi debugging
+if(DEBUG_VERSION): #for cgi debugging
     sys.path.append('C:\\Komodo-PythonRemoteDebugging-8.5.3-83298-win32-x86\\pythonlib') 
     from dbgp.client import brk
-    #brk(host="localhost", port=49475) #sets hard breakpoint (port number should match value for Port from 'Debug->Listener Status' in Komodo)
-
-SETTINGS_TABLE = {'LOCAL_HOME':'', 'LOCAL_DATA':''}
-settings_file = './settings.txt'
-if(local_version):
-    image_magick_dir = 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' #'C:/Program Files (x86)/ImageMagick-6.7.8-Q16'
-else:
-    image_magick_dir = '/local/apps/ImageMagick/6.8.9-4/bin'
+    brk(host="localhost", port=49475) #sets hard breakpoint (port number should match value for Port from 'Debug->Listener Status' in Komodo)
 
 def read_settings():
     try:
@@ -250,10 +243,6 @@ os.environ['HOME']=SETTINGS_TABLE['LOCAL_HOME']
 
 import dir_to_html    
 import pandas as pd
-
-#if(local_version):
-#    import gel_annotation as ga
-
 import image_tools as it
 
 #process the form:
@@ -339,11 +328,11 @@ else:
             f.write(tail + '\t' + red_min + '\t' + red_max + '\t' + gr_min + '\t' + gr_max + '\n')
         f.close()
         
-        if(local_version):
-            os.chdir(image_magick_dir)
+        if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
+            os.chdir(SETTINGS_TABLE['IM_DIR'])
             convert_cmd = 'convert'
         else:
-            convert_cmd = image_magick_dir + '/convert'
+            convert_cmd = SETTINGS_TABLE['IM_DIR'] + '/convert'
         
         #apply settings to density analysis image
         density_image = re.sub('^gel', '_gel', tail)
@@ -431,7 +420,7 @@ else:
                     
                     #(2) *NEW* run script to find separation lines for the gels in the collage
                     #saving the line position to a json file for display to user and manual adjustment
-                    if(local_version):
+                    if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
                         subprocess.check_call(["python", "run_gel_annotation.py", "mark_collage",
                                                 new_dir + '/' + coll_filename,
                                                 new_dir + '/' + hdri_filename_r,
@@ -440,7 +429,7 @@ else:
                                                 num_gels,
                                                 num_cols,
                                                 num_rows,
-                                                new_gel_checked])
+                                                new_gel_checked, SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']])
                     else:
                         pid = Popen(["./run_gel_annotation.py", "mark_collage",
                                         new_dir + '/' + coll_filename,
@@ -450,47 +439,25 @@ else:
                                         num_gels,
                                         num_cols,
                                         num_rows,
-                                        new_gel_checked], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
+                                        new_gel_checked, SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
                         
-                    ##(2) run script to separate collage and create gel images
-                    #if(local_version):
-                    #    subprocess.check_call(["python", "run_gel_annotation.py", "split_collage",
-                    #                            new_dir + '/' + coll_filename,
-                    #                            new_dir + '/' + hdri_filename_r,
-                    #                            new_dir + '/' + hdri_filename_g,
-                    #                            new_dir + '/_labels.txt',
-                    #                            num_gels,
-                    #                            num_cols,
-                    #                            num_rows,
-                    #                            SETTINGS_TABLE['LOCAL_HOME']])
-                    #else:
-                    #    pid = Popen(["./run_gel_annotation.py", "split_collage",
-                    #                            new_dir + '/' + coll_filename,
-                    #                            new_dir + '/' + hdri_filename_r,
-                    #                            new_dir + '/' + hdri_filename_g,
-                    #                            new_dir + '/' + '/_labels.txt',
-                    #                            num_gels,
-                    #                            num_cols,
-                    #                            num_rows,
-                    #                            SETTINGS_TABLE['LOCAL_HOME']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
-                    
         display_home_page(msg)
     elif(action == 'label'):
         gel_dir = form.getvalue('gels_to_label') 
         ann_file = SETTINGS_TABLE['LOCAL_HOME'] + '/' + ANNOTATION_FILE_NAME
         
-        if(local_version):
+        if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
             subprocess.check_call(["python", "run_gel_annotation.py", "label_gels2",
                                     SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir,
                                     SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '/_labels.txt',
                                     ann_file,
-                                    SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '_exposure.txt'])
+                                    SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '_exposure.txt', SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']])
         else:
             pid = Popen(["./run_gel_annotation.py", "label_gels2",
                         SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir,
                         SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '/_labels.txt',
                         ann_file,
-                        SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '_exposure.txt'], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
+                        SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '_exposure.txt', SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
         display_home_page(msg)
     elif(action == 'save_density'):
         #should I put this in a separate process??
@@ -659,8 +626,6 @@ else:
                         rect_x1 = int(band_info[str(i)][0])
                         rect_x2 = rect_x1 + saved_x_width - 1
                         
-                        
-                        
                         total_signal = it.get_signal(df_image, rect_x1, rect_x2, rect_y1, rect_y2)
                         
                         band_info[str(i)][0] = str(rect_x1)
@@ -700,12 +665,12 @@ else:
         f.close()
         
         #clip and mark gels
-        if(local_version):
+        if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
             subprocess.check_call(["python", "run_gel_annotation.py", "clip_and_mark_gels",
-                                    gel_marker_file, SETTINGS_TABLE['LOCAL_HOME']])
+                                    gel_marker_file, SETTINGS_TABLE['LOCAL_HOME'], SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']])
         else:
             pid = Popen(["./run_gel_annotation.py", "clip_and_mark_gels",
-                                    gel_marker_file, SETTINGS_TABLE['LOCAL_HOME']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
+                                    gel_marker_file, SETTINGS_TABLE['LOCAL_HOME'], SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
         display_home_page(msg)
     
     

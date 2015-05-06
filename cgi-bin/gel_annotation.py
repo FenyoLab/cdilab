@@ -1,6 +1,6 @@
 #!/local/apps/python/2.7.7/bin/python
 
-local_version = True
+devel_info = False #if set to True, temporary directories won't be removed
 
 import os
 import sys
@@ -24,9 +24,11 @@ import json
 min_peaks_marker_lane = 0
 
 full_ladder = (250,150,100,75,50,37,25,20,15,10)
+display_ladder = (250,150,100,75,50,37)
+
 full_ladder_new_gels = (250,150,100,75,50,37,25,20)
 display_ladder_new_gels = (250,150,100,75,50,37)
-display_ladder = (250,150,100,75,50,37)
+
 
 #these are the ratios for the difference-between-peaks (i.e. bands) for the ladder lane
 #these are used to determine which lanes are the ladder lanes - if we find bands with
@@ -42,11 +44,6 @@ ratio_comp_max_2=[[1.3,1.196,1.72,1.4,1.755,0.75],[1.3,1.196,1.72,1.4]] # [1.3,1
 #ratio_comp_min_2=[0.7,0.644,0.91,0.63]
 #ratio_comp_max_2=[1.3,1.196,1.72,1.4]
 #ratio_comp_min/max_2 correspond to difs between bands representing ladder masses 150,100,75,50,37
-
-if(local_version):
-	image_magick_dir = 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' #'C:/Program Files (x86)/ImageMagick-6.7.8-Q16'
-else:
-	image_magick_dir = '/local/apps/ImageMagick/6.8.9-4/bin'
 
 ## u'\u03BC'
 #caption_text1 = 'Tet-ON HeLa cells were transfected with construct encoding '
@@ -73,8 +70,6 @@ caption_text_green2 = ' with an N-terminal fusion of FLAG, YFP (Venus) and V5 ta
 caption_text_green3 = ' or 1 ug of FLAG-M2. Immunoblotting was performed using 0.2ug/ml CDI mouse mAb Anti-'
 #GENE NAME01 (cloneID# JH*01)
 caption_text_green4 = '. HC=Heavy chain.'
-
-#finds peaks
 
 def find_peaks(x,y,peak_count,bin,blank,signal_min=0,peak_range_delta=0.2):
 	#bin: the size of the bin +/- in which to sum the y-values to find the peaks
@@ -273,12 +268,10 @@ def check_spacing(peak_list, pixel_pos, lane_width, bin_x):
 	return True
 
 #####################################################################################################################
-def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_filename_g, labels_filename, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10, devel_info=False):
+def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_filename_g, labels_filename, im_dir, os_type, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10):
 #clips the gels from the collage using the rect coords in the json file
 #tries to find the bands on each gel that correspond to the ladder masses and outputs json file with rect coordinates
 		
-	#devel_info=False
-	if(local_version): devel_info = True
 	labels = pd.read_table(labels_filename)
 	
 	#organize files/directories and variables
@@ -288,17 +281,14 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 	temp_dir = head + '/_clip-gels-' + date + '-' + 'TEMP'
 	os.mkdir(temp_dir)
 	
-	if(local_version):
-		os.chdir(image_magick_dir)
+	if(os_type == 'WINDOWS'):
+		os.chdir(im_dir)
 		convert_cmd = 'convert'
 	else:
-		convert_cmd = image_magick_dir + '/convert'
+		convert_cmd = im_dir + '/convert'
 	
 	image_hdr_r = it.load_image(hdr_filename_r)
 	image_hdr_g = it.load_image(hdr_filename_g)
-	
-	result_scale_x = scale_x
-	result_scale_y = scale_y
 	
 	#load from json file
 	f = open(json_filename, 'r')
@@ -313,6 +303,11 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 		#new gels
 		lane_width=12
 		max_ladder_peaks=8
+		#scale_x*=.7
+		scale_y = 180 #*=.5
+		
+	result_scale_x = scale_x
+	result_scale_y = scale_y
 	
 	for gel_id in gel_marker_info:
 		if(gel_id == 'gel-format'):
@@ -519,7 +514,7 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 	#delete temp directory
 	if(not devel_info): shutil.rmtree(temp_dir)
 		
-def mark_collage(new_gel_format, filename, labels_filename, num_gels=12, num_x=5, num_y=3, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10, devel_info=False):
+def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num_gels=12, num_x=5, num_y=3, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10):
 #tries to find demarcations between gels in the gell collage
 #outputs json file indicating where the boxes should be drawn on the image for the user to adjust
 #and where the markers in the marker lanes are located
@@ -535,8 +530,6 @@ def mark_collage(new_gel_format, filename, labels_filename, num_gels=12, num_x=5
 	else:
 		background_smooth_window = 51
 	
-	#devel_info=False
-	if(local_version): devel_info = True
 	labels = pd.read_table(labels_filename)
 	
 	#these will be the dicts to store the rect positions to outlie the gels
@@ -566,11 +559,11 @@ def mark_collage(new_gel_format, filename, labels_filename, num_gels=12, num_x=5
 	scale_x_=int(num_y*true_width/(1.0*bin_x)) # <-- not sure reason for bin_x rescale
 	scale_y_=int(3)
 	
-	if(local_version):
-		os.chdir(image_magick_dir)
+	if(os_type == 'WINDOWS'):
+		os.chdir(im_dir)
 		convert_cmd = 'convert'
 	else:
-		convert_cmd = image_magick_dir + '/convert'
+		convert_cmd = im_dir + '/convert'
 		
 	#conver tiff file to jpg for browser display
 	os.system(convert_cmd + ' "' + filename + '" "' + head + '/sectioned_collage.jpg"')
@@ -1104,498 +1097,8 @@ def mark_collage(new_gel_format, filename, labels_filename, num_gels=12, num_x=5
 	
 	#delete temp directory
 	if(not devel_info): shutil.rmtree(temp_dir)
-	
-def split_collage(filename, hdr_filename_r, hdr_filename_g, labels_filename, num_gels=12, num_x=5, num_y=3, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10, devel_info=True):
-#break up collage into separate gel images, produces the separate images in a new directory (with a timestamp)
-	#devel_info=False
-	
-	labels = pd.read_table(labels_filename)
-	
-	# (0) organize files/directories and variables
-	(head, tail) = os.path.split(filename)
-	date=datetime.datetime.now().strftime("%Y-%m-%d-%H.%M.%S")
-	out_dir = head #+ '/gels (' + date + ')'
-	#os.mkdir(out_dir)
-	temp_dir = head + '/_gels-' + date + '-' + 'TEMP'
-	os.mkdir(temp_dir)
-	
-	tif = tf.TiffFile(filename)
-	true_length = tif.pages[0].image_length
-	true_width = tif.pages[0].image_width
-	
-	#below lines will set it up so that there's no rescaling at the beginning, only at the end before producing image to be used for labeling
-	#I don't want rescaling at the beginning b/c I want to use the gel end points to cut the original image for densitometric analysis
-	result_scale_x = scale_x
-	result_scale_y = scale_y
-	scale_x = true_width/num_x
-	scale_y = true_length/num_y
-	
-	###scale_x_=int(num_y*num_x*scale_x/(1.0*bin_x)) # <-- not sure reason for bin_x rescale
-	scale_x_=int(num_y*true_width/(1.0*bin_x)) # <-- not sure reason for bin_x rescale
-	scale_y_=int(3)
-	
-	if(local_version):
-		os.chdir(image_magick_dir)
-		convert_cmd = 'convert'
-	else:
-		convert_cmd = image_magick_dir + '/convert'
 		
-	image_hdr_r = it.load_image(hdr_filename_r)
-	image_hdr_g = it.load_image(hdr_filename_g)
-	
-	# (1) resizing image, creating one long image instead of rows of gels
-	#cutting out the 3 rows
-	for i in range(num_y):
-		###os.system(convert_cmd + ' "' + filename + '" -auto-level -scale '+str(num_x*scale_x)+'x'+str(num_y*scale_y)+'! -crop '+str(num_x*scale_x)+'x'+str(scale_y)+'+0+'+str(i*scale_y)+' "'+temp_dir+'/cut'+str(i)+'.tif"')
-		os.system(convert_cmd + ' "' + filename + '" -auto-level -crop '+str(true_width)+'x'+str(scale_y)+'+0+'+str(i*scale_y)+' "'+temp_dir+'/cut'+str(i)+'.tif"')
-	
-	#combining the 3 cut out rows into one long row
-	shutil.move(temp_dir + '/cut0.tif', temp_dir + '/one-row.tif')
-	for i in range(1,num_y):
-		os.system(convert_cmd + ' "' + temp_dir + '/one-row.tif" "' + temp_dir + '/cut' + str(i) + '.tif" +append "' + temp_dir + '/one-row.tif"')
-		os.unlink(temp_dir + '/cut' + str(i) + '.tif')
-		
-	#(2) finding the ladder lanes
-	#scaling down y-axis to 3 values - this sums the value on y-axis into 3 'bins' (?)
-	os.system(convert_cmd + ' "' + temp_dir + '/one-row.tif" -scale ' + str(scale_x_) + 'x' + str(scale_y_) + '! "' + temp_dir + '/one-row.txt"')
-	
-	#read in image data (from scaled down image above)
-	df = pd.read_table(temp_dir + '/one-row.txt', header=None, skiprows=1, comment='#', sep='[,:()]')
-	os.unlink(temp_dir + '/one-row.txt')
-	if('X2' in df.columns): #<--check this works!  different versions of pandas?
-		df=df.drop(['X2','X6'], axis=1) 
-	else:
-		df=df.drop([2,6], axis=1)
-	df.columns=['x','y','r','g','b']
-	
-	#create a table with, for each x-value and each y-value (0,1,2), the r,g and b values can be retrieved
-	dfp=df.pivot_table(rows=['x'], cols=['y'], aggfunc=np.sum)
-	
-	#create column in table that, for each x-value, is the product of the y-values (one for each of red, green and blue)
-	dfp['peak_detection_r']=1
-	for i in range(3):
-		dfp['peak_detection_r']*=dfp[('r',i)]
-	dfp['peak_detection_g']=1
-	for i in range(3):
-		dfp['peak_detection_g']*=dfp[('g',i)]
-	dfp['peak_detection_b']=1
-	for i in range(3):
-		dfp['peak_detection_b']*=dfp[('b',i)]
-	dfp['peak_detection_rg']=1
-	for i in range(3):
-		dfp['peak_detection_rg']*=dfp[('r',i)]-dfp[('g',i)]
-		
-	#also create column for red minus green
-	dfp['peak_detection_rg']=dfp['peak_detection_r']-dfp['peak_detection_g']
-	dfp[dfp['peak_detection_rg']<0]['peak_detection_rg']=0
-	d_=int(scale_x_/(num_x*num_y))
-	
-	#find peaks in the red color, using 'peak_detection_r' column...cutting off the end a little for the blank area at the end ??
-	(peaks_x_r_temp, peaks_y_r_temp) = find_peaks(dfp[dfp.index<int((num_gels-0.5)/num_gels*len(dfp))].index,
-						 dfp[dfp.index<int((num_gels-0.5)/num_gels*len(dfp))]['peak_detection_r'],
-						 4*num_gels,
-						 1,
-						 10)
-	
-	#SORT peaks_x_r_temp 
-	peaks_x_r_temp = sorted(peaks_x_r_temp)
-	
-	#loop through each red color peak (going across the image) - each one may indicate a marker lane
-	peaks_found = []
-	marker_peaks_lists = {}
-	max_var = 0
-	max_green_ratio = 0
-	max_num_peaks = 0
-	max_band_ratios_match = 0
-	for i in range(len(peaks_x_r_temp)):
-		scale_x__=peaks_x_r_temp[i]*bin_x
-		scale_x__-=lane_width
-		scale_x____=2*lane_width + .5*lane_width #cut out extra for slanted lanes to get entire lane
-		if scale_x__<0:
-			scale_x____+=scale_x__
-			scale_x__=0
-			
-		#cut out the marker lane (using the current peak location)
-		os.system(convert_cmd + ' "' + temp_dir+'/one-row.tif" -crop '+str(scale_x____)+'x'+str(scale_y)+'+'+str(scale_x__)+'+0 "'+temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-markers.tif"')
-		os.system(convert_cmd + ' "' + temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-markers.tif" ' + '-scale 1x'+str(scale_y)+'! "'+temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-markers.txt"')
-		
-		#read in the 1x image text file of the marker lane, generated above
-		df_test = pd.read_table(temp_dir + '/test-' + str(peaks_x_r_temp[i]) + '-markers.txt', header=None, skiprows=1, comment='#', sep='[,:()]') #then del file!
-		os.unlink(temp_dir + '/test-' + str(peaks_x_r_temp[i]) + '-markers.txt')
-		if('X1' in df.columns): #<--check this works!  different versions of pandas?
-			df_test.index=df_test.X1
-			df_test=df_test.drop(['X0','X1','X2','X6'], axis=1)
-		else:
-			df_test.index=df_test[1]
-			df_test=df_test.drop([0,1,2,6], axis=1)
-		df_test.columns=['r','g','b']
-		
-		#smoothing and background subtraction of red signal - now we are reading vertically
-		df_test.r=smooth(df_test.r,1,'flat')
-		df_test.r-=min(df_test.r)
-		df_test.r-=sorted(df_test.r)[int(len(df_test.r)*0.25)]
-		df_test['r'][df_test.r<0]=0
-		df_test['background']=smooth(df_test.r,51,'flat')
-		df_test['rg']=df_test.r-df_test.background
-		df_test['rg'][df_test.rg<0.08*max(df_test.rg)]=0
-		
-		df_test.g=smooth(df_test.g,1,'flat')
-		df_test.g-=min(df_test.g)
-		df_test.g-=sorted(df_test.g)[int(len(df_test.g)*0.25)]
-		df_test['g'][df_test.g<0]=0
-		df_test['background_g']=smooth(df_test.g,51,'flat')
-		df_test['gg']=df_test.g-df_test.background_g
-		df_test['gg'][df_test.gg<0.08*max(df_test.gg)]=0
-		
-		#get pixels where green is above red background
-		s_green_above_rb = df_test.gg - df_test.background
-		s_green_above_rb = s_green_above_rb[s_green_above_rb>0]
-		green_ratio = float(len(s_green_above_rb))/len(df_test.gg)
-		
-		peaks_x_=[]
-		peaks_y_=[]
-		
-		#find peaks in the marker lane - these correspond to the bands
-		(peaks_x_,peaks_y_)=find_peaks(df_test.index,df_test.rg,max_ladder_peaks,0,10,5)
-		#rearrange:
-		peaks_x_y = []
-		for i_v,v in enumerate(peaks_x_):
-			peaks_x_y.append([v, peaks_y_[i_v]])
-		marker_peaks_lists[peaks_x_r_temp[i]] = peaks_x_y #[peaks_x_, peaks_y_]
-		
-		if len(peaks_x_)>0:
-			#plot the signal and the background, with the peaks and peak range also plotted, for current marker lane
-			#print i,peaks_x_,peaks_y_
-			peaks_x_sorted_=np.array(sorted(peaks_x_))
-			if(devel_info):
-				fig, (ax1) = plt.subplots(1,figsize=(6,6))
-				ax1.plot(df_test.index,df_test.rg,c='black')
-				#ax1.plot(df_test.index,df_test.gg,c='blue')
-				ax1.plot(df_test.index,df_test.background,c='gray')
-				ax1.plot(df_test.index,df_test.r,c='r')
-				ax1.plot(df_test.index,df_test.g,c='yellow')
-				ax1.plot(df_test.index,df_test.gg,c='green')
-				ax1.set_xlim([0,len(df_test)])
-				ax1.set_ylim([0,1.05*max([max(df_test.r),max(df_test.rg),max(df_test.b),max(df_test.g),max(df_test.gg)])])
-			for k in range(0,len(peaks_x_)):
-				min_x=0
-				max_x=0
-				(min_x,max_x)=peak_range(df_test.index,df_test.rg,peaks_x_[k])
-				if(devel_info): ax1.plot([min_x,max_x],[peaks_y_[k],peaks_y_[k]],c='r')
-			if(devel_info):ax1.scatter(peaks_x_,peaks_y_,c='r')
-			
-			std_norm = np.std(peaks_y_)/np.mean(peaks_y_)
-			band_ratios_match = match_peak_ratios(peaks_x_sorted_)
-			if(max_var < std_norm): max_var = std_norm
-			if(max_green_ratio < green_ratio): max_green_ratio = green_ratio
-			if(max_num_peaks < len(peaks_x_)): max_num_peaks = len(peaks_x_)
-			if(max_band_ratios_match < band_ratios_match): max_band_ratios_match = band_ratios_match
-			
-			peaks_found.append([i,len(peaks_x_),std_norm,green_ratio,band_ratios_match])
-			
-			if(devel_info):
-				fig.savefig(temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-peaks.png',dpi=72,bbox_inches='tight')
-				fig.clf()
-				plt.close(fig)
-				
-	
-	#marker lanes are the top lanes in peaks_found (those with most peaks found)
-	peaks_x_r = []
-	peaks_y_r = []
-	for pf in peaks_found:
-		score = (float(pf[1])/max_num_peaks)/4 + (1-pf[2]/max_var)/4 + (1-pf[3]/max_green_ratio)/4 + (float(pf[4])/max_band_ratios_match)/4
-		pf.append(score)
-	peaks_found = sorted(peaks_found, key=lambda x: x[5], reverse=True)
-	
-	for peaks in peaks_found:
-		if len(peaks_x_r) >= num_gels: break
-		if(check_spacing(peaks_x_r, peaks_x_r_temp[peaks[0]], lane_width, bin_x)):
-			peaks_x_r.append(peaks_x_r_temp[peaks[0]]) #pixel location of peak
-			peaks_y_r.append(peaks_y_r_temp[peaks[0]])
-	peaks_x_r_sorted=sorted(peaks_x_r)
-	
-	if(devel_info):
-		f_peaks_found = open(temp_dir + '/peaks_found.txt', 'w')
-		pf_i = 1
-		for pf in peaks_found:
-			f_peaks_found.write(str(pf_i) + "\t")
-			pf_i += 1
-			f_peaks_found.write(str(peaks_x_r_temp[pf[0]]) + "\t")
-			for pf_ in pf:
-				f_peaks_found.write(str(pf_) + "\t")
-			
-			f_peaks_found.write("\n")
-		f_peaks_found.write("\n")
-		pf_i = 1
-		for pxr in peaks_x_r_sorted:
-			f_peaks_found.write(str(pf_i) + "\t")
-			pf_i += 1
-			f_peaks_found.write(str(pxr) + "\n")
-		f_peaks_found.close()
-			
-	#plotting the validated peaks - those that have be found to represent marker lanes
-	
-	if(devel_info):
-		fig, (ax1) = plt.subplots(1,figsize=(6,6))
-		ax1.plot(dfp.index,dfp['peak_detection_r'],c='r')
-		ax1.plot(dfp.index,dfp['peak_detection_g'],c='g')
-		ax1.scatter(peaks_x_r,peaks_y_r,c='r')
-		ax1.set_xlim([0,len(dfp)])
-		ax1.set_ylim([0,1.05*max(dfp.peak_detection_r)])
-		fig.savefig(temp_dir+'/peaks.png',dpi=72,bbox_inches='tight')
-		fig.clf()
-		plt.close(fig)
-		
-	#finding/cropping the gels...
-	max_gel_size=0
-	for i in range(len(peaks_x_r_sorted)):
-		scale_x__=peaks_x_r_sorted[i]*bin_x #midpoint of current marker lane (1st lane of gel we wish to cut)
-		if (i+1<num_gels) and (i+1<len(peaks_x_r_sorted)): #not at the last lane
-			scale_x___=peaks_x_r_sorted[i+1]*bin_x-scale_x__ #size of the region we should cut (size of the gel)
-		else: #at the last lane
-			scale_x___=max_gel_size #num_gels*scale_x-scale_x__
-		if max_gel_size<scale_x___: #keeping track of max gel size found
-			max_gel_size=scale_x___
-		scale_x__-=lane_width #subtracting back to the beginning of the marker lane
-		marker_offset=lane_width
-		scale_x____=2*lane_width #size of a lane
-		if scale_x__<0:
-			scale_x____+=scale_x__
-			scale_x__=0
-			marker_offset=0
-		#scale_x___-=lane_width #subtracting back before the NEXT marker
-		
-		#crop the current gel
-		if(devel_info):
-			#the cropped gel image - version 0 - with full height
-			os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -crop '+str(scale_x___)+'x'+str(scale_y)+'+'+str(scale_x__)+'+0 "'+temp_dir+'/gel'+str(i)+'.tif"')
-		
-		#finding top and bottom of the marker lane - cut off bands at top/bottom that aren't part of ladder
-		
-		#read the current ladder configuration from the labels file, set cur_ladder
-		if 'Ladder' in labels.columns:
-			labels_ladder = labels['Ladder'][i]
-			if(type(labels_ladder) == type('')):
-				labels_ladder = labels_ladder.split(',')
-			elif(np.isnan(labels_ladder)):
-				labels_ladder = []
-			else:
-				labels_ladder = str(labels_ladder)
-				labels_ladder = labels_ladder.split(',')
-			
-		else:
-			labels_ladder = []
-		
-		
-		cur_ladder = []
-		for mass in full_ladder:
-			remove = False
-			for rem_mass in labels_ladder:
-				if(int(float(rem_mass)) == mass):
-					remove = True
-					break
-			if(not remove):cur_ladder.append(mass)
-			
-		peaks_x_y = marker_peaks_lists[peaks_x_r_sorted[i]]
-		
-		#sort by intensity and cut off any beyond what is listed in ladder
-		peaks_x_y = sorted(peaks_x_y, key=lambda x: x[1], reverse=True)
-		peaks_x_sorted___ = []
-		if(len(cur_ladder) < len(peaks_x_y)): len_ = len(cur_ladder)
-		else: len_ = len(peaks_x_y)
-		for i_v in range(len_):
-			peaks_x_sorted___.append(peaks_x_y[i_v][0])
-			
-		#then sort by pixel top to bottom
-		peaks_x_sorted___=np.array(sorted(peaks_x_sorted___))
-		
-		#peaks_x_ = marker_peaks_lists[peaks_x_r_sorted[i]][0]
-		#peaks_x_sorted_=np.array(sorted(peaks_x_))
-		#peaks_x_sorted___=peaks_x_sorted_[:]
-		
-		for l_i in range(len(full_ladder)):
-			if(full_ladder[l_i] == cur_ladder[0]):
-				break
-		#l_i is the number of bands away from top band of 250.  we want to show a little above 250
-		start_peak=0
-		top=peaks_x_sorted___[start_peak] - (l_i)*(peaks_x_sorted___[start_peak+1]-peaks_x_sorted___[start_peak]) - .5*(peaks_x_sorted___[start_peak+1]-peaks_x_sorted___[start_peak])
-		if(top < 0): top = 0
-		
-		found_37 = False
-		for l_i in range(len(cur_ladder)):
-			if(cur_ladder[l_i] == 37):
-				end_peak = l_i
-				found_37 = True
-				break
-		if(not found_37 or end_peak > (len(peaks_x_sorted___)-1)):
-			if(len(peaks_x_sorted___) < len(cur_ladder)): end_peak = len(peaks_x_sorted___)-1
-			else: end_peak = len(cur_ladder)-1
-		
-		#l_i is the number of bands away from  band of 37  we want to show the band at 37, but not much further below
-		bottom = peaks_x_sorted___[end_peak] + .5*(peaks_x_sorted___[end_peak]-peaks_x_sorted___[end_peak-1])
-		
-		#the cropped gel image - version 1
-		os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -auto-level -crop '+str(scale_x___)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped.tif"')
-		
-		#read in cropped gel image as txt (y-axis collapsed)
-		os.system(convert_cmd + ' "' +temp_dir+'/gel'+str(i)+'-cropped.tif" -scale '+str(int(scale_x___))+'x1! "'+temp_dir+'/gel'+str(i)+'-cropped.txt"')
-		df__ = pd.read_table(temp_dir+'/gel'+str(i)+'-cropped.txt',header=None,skiprows=1,comment='#',sep='[,:()]')
-		os.unlink(temp_dir+'/gel'+str(i)+'-cropped.txt')
-		if('X0' in df__.columns): #<--check this works!  different versions of pandas?
-			df__.index=df__.X0
-			df__=df__.drop(['X0','X1','X2','X6'], axis=1)
-		else:
-			df__.index=df__[0]
-			df__=df__.drop([0,1,2,6], axis=1)
-		df__.columns=['r','g','b']
-		
-		#smoothing and background subtraction
-		df__.r-=min(df__.r)
-		df__.g-=min(df__.g)
-		df__.r-=sorted(df__.r)[int(len(df__.r)*0.25)]
-		df__.g-=sorted(df__.g)[int(len(df__.g)*0.25)]
-		df__['r'][df__.r<0]=0
-		df__['g'][df__.g<0]=0
-		df__['background_g']=smooth(df__.g,11,'flat')
-		df__['background_r']=smooth(df__.r,11,'flat')
-		df__['g_']=df__.g-df__.background_g
-		df__['r_']=df__.r-df__.background_r
-		
-		#
-		df__['r_'][df__.r_<0]=0
-		df__['g_'][df__.g_<0]=0
-		
-		#find peaks corresponding to the lanes of the gel
-		(peaks_x_r,peaks_y_r)=find_peaks(df__.index[df__.index<0.95*len(df__)],df__.r_[df__.index<0.95*len(df__)],8,11,int(scale_x/8*3/4)) # * 1/2 instead?? - it adds this to both sides of found peak !
-		(peaks_x_g,peaks_y_g)=find_peaks(df__.index[df__.index<0.97*len(df__)],df__.g_[df__.index<0.97*len(df__)],7,11,int(scale_x/8*3/4)) # * 1/2 instead??
-		peaks_x_r=np.array(peaks_x_r)
-		peaks_y_r=np.array(peaks_y_r)
-		peaks_x_g=np.array(peaks_x_g)
-		peaks_y_g=np.array(peaks_y_g)
-		
-		#make the plots of the signal (red and green) and peaks found
-		if(devel_info):
-			fig, (ax1) = plt.subplots(1,figsize=(6,6))
-			ax1.plot(df__.index,df__.r,c='r')
-			ax1.plot(df__.index,df__.g,c='g')
-			ax1.plot(df__.index,df__.background_r,c='gray')
-			ax1.plot(df__.index,df__.background_g,c='black')
-			ax1.scatter(peaks_x_r,peaks_y_r,c='r')
-			ax1.scatter(peaks_x_g,peaks_y_g,c='g')
-			ax1.set_xlim([0,len(df__.index)])
-			ax1.set_ylim([0,1.05*max([max(df__.r),max(df__.g)])])
-		
-		#deciding on the lane width
-		peaks_x_r_sorted_=np.array(sorted(peaks_x_r))
-		peaks_x_g_sorted=np.array(sorted(peaks_x_g))
-		peaks_x_r_sorted_=peaks_x_r_sorted_[peaks_x_r_sorted_<0.93*len(df__)]
-		peaks_x_g_sorted=peaks_x_g_sorted[peaks_x_g_sorted<0.96*len(df__)]
-		if(len(peaks_x_g_sorted) > 1): lane_width_=np.mean(peaks_x_g_sorted[1:]-peaks_x_g_sorted[:-1]) #lane width -> min. peak separation
-		else: lane_width_=2*lane_width
-		#adjustments to lane width:
-		#print '1: ',i,lane_width_
-		if (len(peaks_x_g)>0 and (marker_offset+lane_width_*8)<max(peaks_x_g)+1.5*lane_width): #checks if lane width is not wide enough, ie. calculated width not reaching end of peaks (green)
-			lane_width_=int((max(peaks_x_g)+1.5*lane_width-marker_offset)/8)
-		if (len(peaks_x_r)>0 and (marker_offset+lane_width_*8)<max(peaks_x_r)+1.5*lane_width): #same as above for red
-			lane_width_=int((max(peaks_x_r)+1.5*lane_width-marker_offset)/8)
-		if (lane_width_<2*lane_width*3/4) or (2*lane_width*8/7<lane_width_): #checks if lane width too small/large as compared to standard (land_width (==14))
-			if(len(peaks_x_r_sorted_) > 1):
-				lane_width_=np.mean(peaks_x_r_sorted_[1:]-peaks_x_r_sorted_[:-1])
-				if (lane_width_<2*lane_width*3/4) or (2*lane_width*8/7<lane_width_):
-					lane_width_=2*lane_width
-			else: lane_width_=2*lane_width
-			
-		if (i+1<num_gels) and (i+1<len(peaks_x_r_sorted)): #checks if calculated with of gel (based on lane width) will overrun the next gel's starting point
-			if (marker_offset+lane_width_*8)>scale_x___:
-				lane_width_=int((scale_x___-marker_offset)/8)
-		
-		if(devel_info):
-			fig.savefig(temp_dir+'/gel'+str(i)+'-lanes.png',dpi=72,bbox_inches='tight')
-			fig.clf()
-			plt.close(fig)
-			
-		#crop gel - version 2 - using lane width found above
-		os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -auto-level -crop '+str(marker_offset+lane_width_*8)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped_.tif"')
-		
-		#stretch gel in x and y direction
-		###os.system(convert_cmd + ' "' +temp_dir+'/gel'+str(i)+'-cropped_.tif" -scale '+str(scale_x)+'x'+str(scale_y)+'! "'+temp_dir+'/gel'+str(i)+'-stretched.tif"') 
-		os.system(convert_cmd + ' "' +temp_dir+'/gel'+str(i)+'-cropped_.tif" -scale '+str(result_scale_x)+'x'+str(result_scale_y)+'! "'+temp_dir+'/gel'+str(i)+'-stretched.tif"') 
-		
-		#copy to output directory
-		if(i < 10): gel_root = 'gel-0' + str(i)
-		else: gel_root = 'gel-' + str(i)
-		shutil.copy2(temp_dir + '/gel' + str(i) + '-stretched.tif', out_dir + '/' + gel_root + '.tif')
-		
-		#gel_root = labels['CDI#'][i] + '_' + labels['Filter_IP'][i] + '.tif'
-		#shutil.copy2(temp_dir + '/gel' + str(i) + '-stretched.tif', out_dir + '/' + gel_root + '.tif')
-		
-		#images used for densitometric analysis#############################
-		#cut out and copy HDRI gel to output directory - note removed autolevel from hdr crop b/c not sure if it will work correctly
-		#NOTE* change this to manually crop since ImageMagick crop is introducing invalid information in the txt file!
-		#gel_y_offset = (i/num_x) * scale_y
-		#gel_x_offset = (i/num_x) * true_width
-		width_correction = 0
-		if(scale_x__ <= true_width and (scale_x__+(marker_offset+lane_width_*8)) <= true_width):
-			gel_x_offset = 0
-			gel_y_offset = 0
-		elif(scale_x__ > true_width and scale_x__ <= 2*true_width and (scale_x__+(marker_offset+lane_width_*8)) <= 2*true_width):
-			gel_x_offset = true_width
-			gel_y_offset = scale_y
-		elif(scale_x__ > 2*true_width):
-			gel_x_offset = 2*true_width
-			gel_y_offset = 2*scale_y
-		else:
-			if(scale_x__ <= true_width):
-				if(true_width-scale_x__ > (scale_x__+(marker_offset+lane_width_*8))-true_width):
-					gel_x_offset = 0
-					gel_y_offset = 0
-					width_correction = (scale_x__+(marker_offset+lane_width_*8))-true_width
-				else:
-					gel_x_offset = true_width
-					gel_y_offset = scale_y
-					scale_x__ = true_width+1
-			elif(scale_x__ <= 2*true_width):
-				if(2*true_width-scale_x__ > (scale_x__+(marker_offset+lane_width_*8))-2*true_width):
-					gel_x_offset = true_width
-					gel_y_offset = scale_y
-					width_correction = (scale_x__+(marker_offset+lane_width_*8))-2*true_width
-				else:
-					gel_x_offset = 2*true_width
-					gel_y_offset = 2*scale_y
-					scale_x__ = 2*true_width+1
-			else:
-				pass #should not reach here
-		os.system(convert_cmd + ' "' + hdr_filename_r + '" -crop '+str(marker_offset+lane_width_*8-width_correction)+'x'+str(bottom-top)+'+'+str(scale_x__-gel_x_offset)+'+'+str(top+gel_y_offset)+' "' + out_dir + '/_' + gel_root + '_hdr_r.txt"')
-		os.system(convert_cmd + ' "' + hdr_filename_g + '" -crop '+str(marker_offset+lane_width_*8-width_correction)+'x'+str(bottom-top)+'+'+str(scale_x__-gel_x_offset)+'+'+str(top+gel_y_offset)+' "' + out_dir + '/_' + gel_root + '_hdr_g.txt"')
-		#os.system(convert_cmd + ' "' + filename + '" -auto-level -crop '+str(marker_offset+lane_width_*8)+'x'+str(bottom-top)+'+'+str(scale_x__-gel_x_offset)+'+'+str(top+gel_y_offset)+' "'+out_dir+'/_gel'+str(i)+'_full.tif"')
-		
-		#######convert hdr image data to a single array and save as JSON for use in HTML canvas element
-		
-		it.crop_image_json(int(marker_offset+lane_width_*8-width_correction), int(bottom-top), int(scale_x__-gel_x_offset), int(top+gel_y_offset), out_dir + '/_' + gel_root + '-r.json', image_hdr_r)
-		it.crop_image_json(int(marker_offset+lane_width_*8-width_correction), int(bottom-top), int(scale_x__-gel_x_offset), int(top+gel_y_offset), out_dir + '/_' + gel_root + '-g.json', image_hdr_g)
-		#######
-		
-		#save gelx-cropped_.tif to main directory as gel-xx-r-d.jpg (red channel only) for use with densitometric analysis
-		os.system(convert_cmd + ' -separate -channel R "' + temp_dir+'/gel'+str(i)+'-cropped_.tif" "' + out_dir + '/' + gel_root + '_RGB-%d.tif"')
-		os.system(convert_cmd + ' -auto-level -negate "' + out_dir + '/' + gel_root + '_RGB-0.tif" "' + out_dir + '/_' + gel_root + '-r-d.jpg"')
-		os.unlink(out_dir + '/' + gel_root + '_RGB-0.tif')
-		#####################################################################
-		
-		#save some data that we will need when labeling:
-		info_file = open(out_dir + '/_' + gel_root + '.txt', 'w')
-		for j, p in enumerate(peaks_x_sorted___):
-			info_file.write(str(p) + ',')
-		info_file.write('\n')
-		#info_file.write(str(ladder_type) + '\n')
-		info_file.write(str(start_peak) + '\n')
-		info_file.write(str(top) + '\n')
-		info_file.write(str(bottom) + '\n')
-		info_file.close()
-			
-	#delete temp directory
-	if(not devel_info): shutil.rmtree(temp_dir)
-	
-def label_gels2(directory, labels_filename, annotation_filename, exposure_filename, scale_x=272, scale_y=468, devel_info=False):
+def label_gels2(directory, labels_filename, annotation_filename, exposure_filename, im_dir, os_type, scale_x=272, scale_y=468):
 	
 	f = open(directory + '/_gel_marker_lines.json', 'r')
 	gel_marker_info = json.load(f)
@@ -1613,8 +1116,6 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 		annotation_filename = head + '/' + tail
 		
 		
-	if(local_version): devel_info = True
-	#return 0/0
 	date=datetime.datetime.now().strftime("%Y-%m-%d-%H.%M.%S")
 	out_dir = directory + '/' + 'labeled (' + date + ')'
 	os.mkdir(out_dir)
@@ -1634,11 +1135,11 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 	except IOError:
 		pass
 	
-	if(local_version):
-		os.chdir(image_magick_dir)
+	if(os_type == 'WINDOWS'):
+		os.chdir(im_dir)
 		convert_cmd = 'convert'
 	else:
-		convert_cmd = image_magick_dir + '/convert'
+		convert_cmd = im_dir + '/convert'
 	
 	file_list = glob.glob(directory + '/*.tif')
 	labels = pd.read_table(labels_filename)
@@ -1650,10 +1151,11 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 		if(mo): i = int(mo.group(1))
 		else: continue 
 		
-		if(local_version):
+		if(os_type == 'WINDOWS'):
 			batch_file = temp_dir + '/' + root + '.bat'
 		else:
 			batch_file = temp_dir + '/' + root + '.sh'
+			
 		orig_red_gel = head + '/_' + root + '-r.json'
 		orig_green_gel = head + '/_' + root + '-g.json'
 		
