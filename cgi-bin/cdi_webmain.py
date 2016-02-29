@@ -1,12 +1,15 @@
 #!C:\WinPython-32bit-2.7.6.3\python-2.7.6\python
 #!/local/apps/python/2.7.7/bin/python
 
+
+
 from datetime import datetime
 import sys
 import os
 import cgi
 import cgitb
 import re
+import numpy as np
 import subprocess
 import glob
 import shutil
@@ -32,7 +35,7 @@ settings_file = './settings.txt'
 if(DEBUG_VERSION): #for cgi debugging
     sys.path.append('C:\\Komodo-PythonRemoteDebugging-8.5.3-83298-win32-x86\\pythonlib') 
     from dbgp.client import brk
-    brk(host="localhost", port=49475) #sets hard breakpoint (port number should match value for Port from 'Debug->Listener Status' in Komodo)
+    brk(host="localhost", port=50761) #sets hard breakpoint (port number should match value for Port from 'Debug->Listener Status' in Komodo)
 
 def read_settings():
     try:
@@ -80,6 +83,7 @@ def print_header(msg=''):
     #print '<div id="dialog_label" class="popup_dialog"><p><img src="/cdi-html/spinner.gif"/> Labeling and annotating gels...  </p></div>'
     print '<div id="dialog_delete_dirs" class="popup_dialog"><p><img src="/cdi-html/spinner.gif"/> Deleting...  </p></div>'
     print '<div id="dialog_clip_and_mark" class="popup_dialog"><p><img src="/cdi-html/spinner.gif"/> Clipping gels...  </p></div>'
+    #print '<div id="dialog_mark" class="popup_dialog"><p><img src="/cdi-html/spinner.gif"/> Saving...  </p></div>'
     #print '<div id="dialog_reload_density" class="popup_dialog"><p><img src="/cdi-html/spinner.gif"/> Saving and reloading table...  </p></div>'
     
     print '<div id="form_dialog_newdir" class="popup_dialog">'
@@ -88,35 +92,33 @@ def print_header(msg=''):
     print '<input type="submit" value="Submit"><input type="hidden" name="action" value="new_dir">'
     print '</form></div>'
     
-    #print '<div id="form_dialog_label" class="popup_dialog">'
-    #print '<form method="post" action="/cdi-cgi/cdi_webmain.py" id="label_form" enctype="multipart/form-data">'
-    #print 'Label gels in: '
-    #print '<input type="text" name="view_gels_to_label" id="view_gels_to_label" class="gels_to_label" value="(none)" disabled>'
-    #print '<input type="hidden" name="gels_to_label" class="gels_to_label" value="(none)">'
-    #print '<br/><br/>'
-    ##print 'Select gel data file:'
-    ##print '<input name="labels_file" id="labels_file" type="file">'
-    ##print '<br/><br/>'
-    #print '<input name="submit" type="submit" value="Label" id="label_button">'
-    #print '<input type="hidden" name="action" value="label">'
-    #print '</form></div>'
+    print '<div id="form_dialog_label" class="popup_dialog">'
+    print '<form method="post" action="/cdi-cgi/cdi_webmain.py" id="label_form" enctype="multipart/form-data">'
+    print 'Label gels in:'
+    print '<input type="text" name="view_gels_to_label" id="view_gels_to_label" class="gels_to_label" value="(none)" disabled>'
+    print '<input type="hidden" name="gels_to_label" class="gels_to_label" value="(none)"><br><br>'
+    print 'Upload new metadata file:'
+    print '<input name="metadata_file" id="metadata_file" type="file">'
+    print '<br/><br/>'
+    print '(if no file selected, the current metadata file will be used)'
+    print '<br/><br/>'
+    print '<input name="submit" type="submit" value="Label" id="label_button">'
+    print '<input type="hidden" name="action" value="label">'
+    print '</form></div>'
     
     print '<div id="form_dialog_collupload" class="popup_dialog">'
     print '<form method="post" action="/cdi-cgi/cdi_webmain.py" id="coll_upload_form" enctype="multipart/form-data">'
     print 'Parent Directory: '
     print '<input type="text" name="view_parent_dir" id="view_parent_dir" class="parent_dir" value="(none)" disabled>'
     print '<input type="hidden" name="parent_dir" class="parent_dir" value="(none)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
-    print '<input type="checkbox" name="new_gel_format" id="new_gel_format">&nbsp;New Gel Format'
+    print '<input type="checkbox" name="new_gel_format" id="new_gel_format" checked>&nbsp;New Gel Format'
     print '<br/><br/>'
     print 'Name: '
     print '<input type="text" name="coll_name", size="30", maxlength="40">'
     print '<br/><br/>'
-    print 'No. Rows: <input type="text" id="num_rows" name="num_rows" onblur="if(parseInt($(this).val()) <= 0) { $(this).val(1); }" onkeydown="validateNumber(event);" size="2" maxlength="2" value="3">&nbsp;&nbsp;&nbsp;'
-    print 'No. Columns: <input type="text" id="num_cols" name="num_cols" onblur="if(parseInt($(this).val()) <= 0) { $(this).val(1); }" onkeydown="validateNumber(event);" size="2" maxlength="2" value="5">&nbsp;&nbsp;&nbsp;'
-    print 'No. Gels: <input type="text" id="num_gels" name="num_gels" onblur="if(parseInt($(this).val()) <= 0) { $(this).val(1); }" onkeydown="validateNumber(event);" size="2" maxlength="2" value="12">'
-    print '<br/><br/>'
-    print 'Select standard TIFF file:'
-    print '<input name="coll_file" id="coll_file" type="file">'
+    print 'No. Rows: <input type="text" id="num_rows" name="num_rows" onblur="if(parseInt($(this).val()) <= 0) { $(this).val(1); }" onkeydown="validateNumber(event);" size="2" maxlength="2" value="4">&nbsp;&nbsp;&nbsp;'
+    print 'No. Columns: <input type="text" id="num_cols" name="num_cols" onblur="if(parseInt($(this).val()) <= 0) { $(this).val(1); }" onkeydown="validateNumber(event);" size="2" maxlength="2" value="6">&nbsp;&nbsp;&nbsp;'
+    print 'No. Gels: <input type="text" id="num_gels" name="num_gels" onblur="if(parseInt($(this).val()) <= 0) { $(this).val(1); }" onkeydown="validateNumber(event);" size="2" maxlength="2" value="24">'
     print '<br/><br/>'
     print 'Select ImageStudio HDRI TIFF file (RED channel):'
     print '<input name="hdri_coll_file_r" id="hdri_coll_file" type="file">'
@@ -158,7 +160,20 @@ def print_functions_list():
     print '<h3><u>Viewing Pane</u></h3> <span id="view_name"></span>'
     print '<div id="content" style="overflow:auto; width:775px;" ></div>'
     print '<input type="button" id="density_analysis_button" value="Save Band Selections">'
-    print '<input type="button" id="collage_markings_button" value="Save Gel Selections">'
+    print '<div id="collage_markings_input" >'
+    print '<table cellspacing=10><tr><td valign="top">'
+    print '<input type="button" id="collage_markings_button" value="Save Gel Selections"><hr>'
+    print '</td></tr><tr><td>'
+    print '<table><tr><td valign="top">'
+    print '<input type="button" id="collage_markings_clip_button" value="Clip Gels">'
+    print '</td><td>'
+    print '<table><tr><td>'
+    print '<input type="checkbox" id="collage_markings_clip_all"> Clip all gels'
+    print '</td></tr><tr><td>'
+    print '<select size=10 style="width:75px;" multiple id="collage_markings_clip_choice"></select>'  
+    print '</td></tr></table>'
+    print '</td></tr></table></td></tr></table>'
+    print '</div>'
     print '<input type="hidden" id="file_url_hidden">'
     print '<table  cellspacing="20"><tr>'
     print '<td>'
@@ -224,6 +239,22 @@ def check_file_type(filename, ext_pattern):
     if(re.match(ext_pattern, ext, re.I)):
         return True
     else: return False
+    
+def check_file_chars(filename):
+    if('\\' in filename or
+        '/' in filename or
+        ':' in filename or
+        '*' in filename or
+        '?' in filename or
+        '"' in filename or
+        '<' in filename or
+        '>' in filename or
+        '|' in filename or
+        '\'' in filename):
+        return False
+    else:
+        return True
+
 
 ####################################################################################################################################################################
 
@@ -256,18 +287,25 @@ else:
     if(action == 'new_dir'):
         #create new dir in Data folder
         new_dir_name = form.getvalue('new_dir')
-        if(os.path.isdir(SETTINGS_TABLE['LOCAL_DATA'] + '/' + data_folder + '/' + new_dir_name)):
-            msg = 'The directory "' + new_dir_name + '" already exists!'
+        
+        #don't allow windows illegal chars or single quote in the dir name, even if running on linux
+        #will eliminate problems with " chars in the names which will cause errors in the javascript
+        #also eliminate problems with allowing slashes in the name
+        if check_file_chars(new_dir_name):
+            if(os.path.isdir(SETTINGS_TABLE['LOCAL_DATA'] + '/' + data_folder + '/' + new_dir_name)):
+                msg = 'The directory "' + new_dir_name + '" already exists!'
+            else:
+                try:
+                    os.mkdir(SETTINGS_TABLE['LOCAL_DATA'] + '/' + data_folder + '/' + new_dir_name)
+                except IOError as e:
+                    msg = "I/O error({0}): {1}".format(e.errno, e.strerror) + '.'
+                except WindowsError as e:
+                    msg = "Windows error({0}): {1}".format(e.errno, e.strerror) + '.'
+                #exception here for bad linux file names?
         else:
-            try:
-                os.mkdir(SETTINGS_TABLE['LOCAL_DATA'] + '/' + data_folder + '/' + new_dir_name)
-            except IOError as e:
-                msg = "I/O error({0}): {1}".format(e.errno, e.strerror) + '.'
-            #except WindowsError as e:
-            #    msg = "Windows error({0}): {1}".format(e.errno, e.strerror) + '.'
-            #exception here for bad linux file names?
+            msg = "Please do not use the following characters in a directory name: / \\ : * ? \" ' &lt; &gt; |"
         display_home_page(msg)
-    elif(action == 'exposure'): #NOT USED 
+    elif(action == 'exposure'): 
         #get exposure from file
         fname = form.getvalue('file')
         fname = fname.replace('/cdi-data', SETTINGS_TABLE['LOCAL_DATA'])
@@ -361,13 +399,73 @@ else:
         json.dump(marker_info, f)
         f.close()
         
-        #re-do densitometric calculations now that user has changed the marker positions?!
-        #this might not be wanted if user has already adjusted the rectangles...
+        #re-do densitometric calculations now that user has changed the marker positions -
+        #this will change the positions of the rectangles and the densitometric data
+        cur_ladder = []
+        ladder_peaks = []
+        gel_markers = {}
+        for marker in marker_info:
+            gel_markers[int(float(marker))] = int(float(marker_info[marker]))
             
+        for marker in sorted(gel_markers.keys(), reverse=True): 
+            cur_ladder.append(marker)
+            ladder_peaks.append(gel_markers[marker])
+        
+        #locate pixel position of the pred mol weight on the gel based on ladder info
+        #locate density rectangle on the image, using peaks found and ladder
+        (name, ext) = os.path.splitext(tail)
+        gel_i = int(name.replace('gel-', ''))
+        labels = pd.read_table(head + '/_labels.txt')
+        pred_mw = float(labels['Predicted Molecular weight'][gel_i])
+        
+        this = 0
+        if cur_ladder[0]+(cur_ladder[0]-cur_ladder[1]) > pred_mw:
+            pos1=ladder_peaks[0]
+            pos2=ladder_peaks[1]
+            
+            if cur_ladder[0] <= pred_mw:
+                this=(np.log(pred_mw)-np.log(cur_ladder[0]))/(np.log(cur_ladder[0])-np.log(cur_ladder[1]))*(pos1-pos2)+pos1
+            else:
+                if cur_ladder[1] <= pred_mw:
+                    this=(np.log(pred_mw)-np.log(cur_ladder[1]))/(np.log(cur_ladder[0])-np.log(cur_ladder[1]))*(pos1-pos2)+pos2
+                else:
+                    for k in range(0,len(cur_ladder)):
+                        if cur_ladder[k]<=pred_mw:
+                            pos1=ladder_peaks[k-1] 
+                            pos2=ladder_peaks[k] 
+                            this=(np.log(pred_mw)-np.log(cur_ladder[k]))/(np.log(cur_ladder[k-1])-np.log(cur_ladder[k]))*(pos1-pos2)+pos2
+                            break
+                        
+        #load band info
+        band_file = head + '/_' + tail.replace('.tif', '_hdr_r.band_info.json')
+        f = open(band_file, 'r')
+        band_info = json.load(f)
+        f.close()
+        
+        #adjust y-values and recalculate signal
+        hdri_gel_file = re.sub('\.band_info\.json$', '.txt', band_file)
+        df = pd.read_table(hdri_gel_file, header=None, skiprows=1, comment='#', sep='[,:()]')
+        df=df.drop([2,4,5,6], axis=1)
+        df.columns=['x','y','signal']
+        df_image = df.pivot(index='x', columns='y', values='signal')
+        for lane in band_info.keys():
+            if(int(lane) > 1): #ladder lane, no signal, no width
+                band_height = int(band_info[lane][5]) - int(band_info[lane][4])
+                band_info[lane][4] = str(int(this-.5*band_height))
+                band_info[lane][5] = str(int(this+.5*band_height))
+                band_info[lane][6] = str(it.get_signal(df_image, int(band_info[lane][0]), int(band_info[lane][1]), int(band_info[lane][4]), int(band_info[lane][5])))
+                   
+        #save information to json file
+        f = open(band_file, 'w')
+        json.dump(band_info, f)
+        f.close()
+        
+        #print "Success";
+        display_home_page("Success")
+        
     elif(action == 'coll_upload'):
         #gel collage is being uploaded
         coll_name = form.getvalue('coll_name')
-        fileitem = form['coll_file']
         hdri_fileitem_r = form['hdri_coll_file_r']
         hdri_fileitem_g = form['hdri_coll_file_g']
         labels_fileitem = form['labels_file']
@@ -375,23 +473,25 @@ else:
         if(new_gel_checked == 'on'): new_gel_checked = '1'
         else: new_gel_checked = '0'
             
-        if(not fileitem.filename or not hdri_fileitem_r.filename or not hdri_fileitem_g.filename or not labels_fileitem.filename):
-            msg = 'Please choose all files to upload.'
+        if(not coll_name or not hdri_fileitem_r.filename or not hdri_fileitem_g.filename or not labels_fileitem.filename):
+            msg = 'Please check the form - something is missing!'
         else:
-            coll_filename = os.path.basename(fileitem.filename)
-            hdri_filename_r = os.path.basename(hdri_fileitem_r.filename)
-            hdri_filename_g = os.path.basename(hdri_fileitem_g.filename)
-            labels_filename = os.path.basename(labels_fileitem.filename)
             
-            if(not check_file_type(coll_filename, '.tif?f')):
-                msg = 'Please upload a tif image file only for the gel collage file.' 
-            if(not check_file_type(hdri_filename_r, '.tif?f') or not check_file_type(hdri_filename_g, '.tif?f')):
-                msg = 'Please upload a tif image file only for the HDRI gel collage files.' 
-            if(not check_file_type(labels_filename, '.txt')):
-                msg = 'Please upload a txt file only for the gel data file (Excel file saved as Text (Tab delimited)).' 
+            if check_file_chars(coll_name):
                 
+                hdri_filename_r = os.path.basename(hdri_fileitem_r.filename)
+                hdri_filename_g = os.path.basename(hdri_fileitem_g.filename)
+                labels_filename = os.path.basename(labels_fileitem.filename)
+                
+                if(not check_file_type(hdri_filename_r, '.tif?f') or not check_file_type(hdri_filename_g, '.tif?f')):
+                    msg = 'Please upload a tif image file only for the HDRI gel collage files.' 
+                if(not check_file_type(labels_filename, '.txt')):
+                    msg = 'Please upload a txt file only for the gel data file (Excel file saved as Text (Tab delimited)).'
+                
+            else:
+                msg = "Please do not use the following characters in a collage name: / \\ : * ? \" ' &lt; &gt; |"
+            
             if(not msg):
-                if(not coll_name): coll_name = coll_filename
                 date=datetime.now().strftime("%Y-%m-%d-%H.%M.%S")
                 coll_name += ' (' + date + ')'
                 parent_dir = form.getvalue('parent_dir')
@@ -412,17 +512,15 @@ else:
                 except WindowsError as e:
                     msg = "Windows error({0}): {1}".format(e.errno, e.strerror) + '.'
                 else:
-                    upload_file(fileitem, new_dir)
                     upload_file(hdri_fileitem_r, new_dir)
                     upload_file(hdri_fileitem_g, new_dir)
                     upload_file(labels_fileitem, new_dir)
                     shutil.copy(new_dir + '/' + labels_filename, new_dir + '/_labels.txt')
                     
-                    #(2) *NEW* run script to find separation lines for the gels in the collage
+                    #(2) run script to find separation lines for the gels in the collage
                     #saving the line position to a json file for display to user and manual adjustment
                     if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
                         subprocess.check_call(["python", "run_gel_annotation.py", "mark_collage",
-                                                new_dir + '/' + coll_filename,
                                                 new_dir + '/' + hdri_filename_r,
                                                 new_dir + '/' + hdri_filename_g,
                                                 new_dir + '/_labels.txt',
@@ -432,7 +530,6 @@ else:
                                                 new_gel_checked, SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']])
                     else:
                         pid = Popen(["./run_gel_annotation.py", "mark_collage",
-                                        new_dir + '/' + coll_filename,
                                         new_dir + '/' + hdri_filename_r,
                                         new_dir + '/' + hdri_filename_g,
                                         new_dir + '/' + '/_labels.txt',
@@ -443,21 +540,51 @@ else:
                         
         display_home_page(msg)
     elif(action == 'label'):
-        gel_dir = form.getvalue('gels_to_label') 
-        ann_file = SETTINGS_TABLE['LOCAL_HOME'] + '/' + ANNOTATION_FILE_NAME
+        gel_dir = form.getvalue('gels_to_label')
+        gel_dir = SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir
+        labels_fileitem = form['metadata_file']
+        if(labels_fileitem.filename):
+            labels_filename = os.path.basename(labels_fileitem.filename)
+            if(not check_file_type(labels_filename, '.txt')):
+                msg = 'Please upload a txt file only for the metadata file (Excel file saved as Text (Tab delimited)).' 
+            else:
+                #upload new metadata file
+                if(os.path.isfile(gel_dir + '/' + labels_filename)):
+                    os.remove(gel_dir + '/' + labels_filename)
+                    
+                upload_file(labels_fileitem, gel_dir)
+                
+                if(os.path.isfile(gel_dir + '/_labels.txt')):
+                    os.remove(gel_dir + '/_labels.txt')
+                    
+                shutil.copy(gel_dir + '/' + labels_filename, gel_dir + '/_labels.txt')
+                
+                #delete old metadata file
+                txt_files = glob.glob(gel_dir + '/*.txt')
+                for txt_f in txt_files:
+                    (head, tail) = os.path.split(txt_f)
+                    if(not tail.startswith('_') and tail != "run-log.txt"):
+                        os.remove(txt_f)
+                        break
         
-        if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
-            subprocess.check_call(["python", "run_gel_annotation.py", "label_gels2",
-                                    SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir,
-                                    SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '/_labels.txt',
-                                    ann_file,
-                                    SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '_exposure.txt', SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']])
-        else:
-            pid = Popen(["./run_gel_annotation.py", "label_gels2",
-                        SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir,
-                        SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '/_labels.txt',
-                        ann_file,
-                        SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + '_exposure.txt', SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
+        if(not msg):
+            ann_file = SETTINGS_TABLE['LOCAL_HOME'] + '/' + ANNOTATION_FILE_NAME
+            if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
+                subprocess.check_call(["python", "run_gel_annotation.py", "label_gels2",
+                                        gel_dir,
+                                        gel_dir + '/' + '/_labels.txt',
+                                        ann_file,
+                                        gel_dir + '/' + '_exposure.txt',
+                                        SETTINGS_TABLE['IM_DIR'],
+                                        SETTINGS_TABLE['OS_TYPE']])
+            else:
+                pid = Popen(["./run_gel_annotation.py", "label_gels2",
+                            gel_dir,
+                            gel_dir + '/' + '/_labels.txt',
+                            ann_file,
+                            gel_dir + '/' + '_exposure.txt',
+                            SETTINGS_TABLE['IM_DIR'],
+                            SETTINGS_TABLE['OS_TYPE']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
         display_home_page(msg)
     elif(action == 'save_density'):
         #should I put this in a separate process??
@@ -468,6 +595,12 @@ else:
         labels = pd.read_table(labels_filename, index_col=False)
         if('Ladder' in labels.columns):
             labels = labels.drop('Ladder',1)
+        if('Doxycycline' in labels.columns):
+            labels = labels.drop('Doxycycline',1)
+        if('Cell-line' in labels.columns):
+            labels = labels.drop('Cell-line',1)
+        if('Input-percent' in labels.columns):
+            labels = labels.drop('Input-percent',1)
         labels = labels.dropna()
         labels = labels.drop([labels.columns[0]], axis=1)
         
@@ -653,26 +786,73 @@ else:
         gel_marker_info = json.load(f)
         f.close()
         
+        #get from select list which gels user would like to clip and run: collage_markings_clip_choice
+        gel_choices = form.getvalue("collage_markings_clip_choice")
+        gel_choices_arr = gel_choices.split(',')
+        
         #loop through gels, updating the rect values with the get object
-        for gel_id in gel_marker_info:
-            if(gel_id == 'gel-format'): continue
+        for gel_id in gel_choices_arr:
+            if(len(gel_id) == 1):
+                    gel_id = 'gel-0' + gel_id
+            else:
+                    gel_id = 'gel-' + gel_id
             gel_id_ = 'rect-' + gel_id
             gel_marker_info[gel_id] = [int(form.getvalue(gel_id_ + '_left')),int(form.getvalue(gel_id_ + '_width')),
                                        int(form.getvalue(gel_id_ + '_top')),int(form.getvalue(gel_id_ + '_height'))]
+            if gel_marker_info[gel_id][0] < 0:
+                gel_marker_info[gel_id][0] = 0
+            if gel_marker_info[gel_id][1] < 0:
+                gel_marker_info[gel_id][1] = 0
+            if gel_marker_info[gel_id][2] < 0:
+                gel_marker_info[gel_id][2] = 0
+            if gel_marker_info[gel_id][3] < 0:
+                gel_marker_info[gel_id][3] = 0
+                
         #save json object to file
         f = open(gel_marker_file, 'w')
         json.dump(gel_marker_info, f)
         f.close()
         
         #clip and mark gels
+        #var = "clip_and_mark_gels '" + gel_marker_file + "' '" + SETTINGS_TABLE['LOCAL_HOME'] + "' '" + SETTINGS_TABLE['IM_DIR'] + "' '" + SETTINGS_TABLE['OS_TYPE'] + "'"
         if(SETTINGS_TABLE['OS_TYPE'] == 'WINDOWS'):
             subprocess.check_call(["python", "run_gel_annotation.py", "clip_and_mark_gels",
-                                    gel_marker_file, SETTINGS_TABLE['LOCAL_HOME'], SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']])
+                                    gel_marker_file, gel_choices, SETTINGS_TABLE['LOCAL_HOME'], SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']])
         else:
             pid = Popen(["./run_gel_annotation.py", "clip_and_mark_gels",
-                                    gel_marker_file, SETTINGS_TABLE['LOCAL_HOME'], SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
+                                    gel_marker_file, gel_choices, SETTINGS_TABLE['LOCAL_HOME'], SETTINGS_TABLE['IM_DIR'], SETTINGS_TABLE['OS_TYPE']], stdout=PIPE, stderr=PIPE, stdin=PIPE).pid
         display_home_page(msg)
+        
+    elif(action == 'save_markings'):
+        #load rectangle dimensions for each gel and save to json file
+        
+        gel_marker_file = form.getvalue('file')
+        gel_marker_file = re.sub('[\\\/]cdi-data[\\\/]', SETTINGS_TABLE['LOCAL_DATA'] + '/', gel_marker_file)
+        f = open(gel_marker_file, 'r')
+        gel_marker_info = json.load(f)
+        f.close()
+        
+        #loop through gels, updating the rect values with the get object
+        for gel_id in gel_marker_info:
+            if(gel_id == 'gel-format'): continue
+            gel_id_ = 'rect-' + gel_id
+            gel_marker_info[gel_id] = [int(form.getvalue(gel_id_ + '_left')),int(form.getvalue(gel_id_ + '_width')),
+                                       int(form.getvalue(gel_id_ + '_top')),int(form.getvalue(gel_id_ + '_height'))]
+            if gel_marker_info[gel_id][0] < 0:
+                gel_marker_info[gel_id][0] = 0
+            if gel_marker_info[gel_id][1] < 0:
+                gel_marker_info[gel_id][1] = 0
+            if gel_marker_info[gel_id][2] < 0:
+                gel_marker_info[gel_id][2] = 0
+            if gel_marker_info[gel_id][3] < 0:
+                gel_marker_info[gel_id][3] = 0
+                
+        #save json object to file
+        f = open(gel_marker_file, 'w')
+        json.dump(gel_marker_info, f)
+        f.close()
     
+        display_home_page("Success")
     
     
     

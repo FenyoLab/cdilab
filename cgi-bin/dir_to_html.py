@@ -72,12 +72,12 @@ def load_html_tree(startpath, show_dir_checks=True):
         if(level == 3):
             location = root.replace('\\', '/')
             location = location.replace(startpath + '/', '')
-            #ret_str += (' <img title="Label Gels" src="/cdi-html/exec1.png" onclick="$(\'.gels_to_label\').val(\'' +
-            #            location + '\'); $(\'#view_gels_to_label\').attr(\'size\', ' +
-            #            str(len(location)+10) + '); $(\'#form_dialog_label\').dialog(\'open\')" style="cursor:hand;" />')
-            ret_str += (' <a href="/cdi-cgi/cdi_webmain.py?action=label&gels_to_label=' +
-                        location +
-                        '"><img title="Label Gels" src="/cdi-html/exec1.png" style="cursor:hand;" /></a>')
+            ret_str += (' <img title="Label Gels" src="/cdi-html/exec1.png" onclick="$(\'.gels_to_label\').val(\'' +
+                        location + '\'); $(\'#view_gels_to_label\').attr(\'size\', ' +
+                        str(len(location)+10) + '); $(\'#form_dialog_label\').dialog(\'open\')" style="cursor:hand;" />')
+            #ret_str += (' <a href="/cdi-cgi/cdi_webmain.py?action=label&gels_to_label=' +
+            #            location +
+            #            '"><img title="Label Gels" src="/cdi-html/exec1.png" style="cursor:hand;" /></a>')
             ret_str += (' <a href="/cdi-cgi/cdi_webmain.py?action=save_density&gels_to_label=' +
                         location +
                         '"><img title="Save Densitometric Data" src="/cdi-html/append.jpg" style="cursor:hand;" /></a>')
@@ -99,6 +99,7 @@ def load_html_tree(startpath, show_dir_checks=True):
                 labels = pd.read_table(labels_filename)
                 labels['CDI#']
                 labels['Filter_IP']
+                labels['Filter_WB']
             except(IOError,KeyError):
                 labels = pd.DataFrame()
         
@@ -115,11 +116,14 @@ def load_html_tree(startpath, show_dir_checks=True):
             if(level == 3 and mo): # source.startswith('gel-') and source.endswith('.jpg')):
                 #show name from metadata file in stead of gel-00, gel-01, etc.
                 if(not labels.empty):
-                    gel_index = int(mo.group(1))
-                    display_name = labels['CDI#'][gel_index] + '_' + labels['Filter_IP'][gel_index]
-                    display_name2 = labels['CDI#'][gel_index] + '_' + labels['Filter_WB'][gel_index]
-                    if(labels['Filter_IP'][gel_index].startswith('PASS') or labels['Filter_WB'][gel_index].startswith('PASS')):
-                        show_bold = True
+                    try:
+                        gel_index = int(mo.group(1)) #display_name = labels['CDI#'][gel_index] + '_' + labels['Filter_IP'][gel_index]
+                        display_name = labels['CDI#'][gel_index] + '_' + labels['Filter_IP'][gel_index]
+                        display_name2 = labels['CDI#'][gel_index] + '_' + labels['Filter_WB'][gel_index]
+                        if(labels['Filter_IP'][gel_index].startswith('PASS') or labels['Filter_WB'][gel_index].startswith('PASS')):
+                            show_bold = True
+                    except(IOError,KeyError):
+                        display_name = f
                 else:
                     display_name = f
                 if(os.path.isfile(root + '/' + f_d)):

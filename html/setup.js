@@ -1,4 +1,4 @@
-var server = "http://localhost"; //"http://localhost"; //"http://openslice.fenyolab.org"; 
+var server = "http://openslice.fenyolab.org"; //"http://localhost"; //"http://openslice.fenyolab.org";  // //"http://localhost"; //"http://openslice.fenyolab.org"; 
 var density_image_resize = 1.5; //the display image is scaled for easier band selection
 var collage_image_resize = .5;
 var r_image_data;
@@ -24,15 +24,17 @@ $(document).ready(function()
         $( "#dialog" ).dialog( {autoOpen: false, modal:true, closeOnEscape:false, beforeClose: function() { return false; }, title: "Please wait...", draggable:false, resizable:false } );
         $( "#dialog_delete_dirs" ).dialog( {autoOpen: false, modal:true, closeOnEscape:false, beforeClose: function() { return false; }, title: "Please wait...", draggable:false, resizable:false } );
         $( "#dialog_clip_and_mark" ).dialog( {autoOpen: false, modal:true, closeOnEscape:false, beforeClose: function() { return false; }, title: "Please wait...", draggable:false, resizable:false } ); 
+        $( "#dialog_mark" ).dialog( {autoOpen: false, modal:true, closeOnEscape:false, title: "Please wait...", draggable:false, resizable:false } ); 
         $( "#form_dialog_newdir" ).dialog( {autoOpen: false, modal:true, closeOnEscape:false, Cancel: function() { $( this ).dialog( "close" ); }, title: "New Directory", draggable:false, resizable:false } );
         $( "#form_dialog_collupload" ).dialog( {autoOpen: false, modal:true, closeOnEscape:false, Cancel: function() { $( this ).dialog( "close" ); }, title: "Upload New Gel Collage", draggable:false, resizable:false, width:800 } );
+        $( "#form_dialog_label" ).dialog( {autoOpen: false, modal:true, closeOnEscape:false, Cancel: function() { $( this ).dialog( "close" ); }, title: "Label Gels", draggable:false, resizable:false, width:800 } );
         
         $('#coll_upload_form').submit(function( event )
         {
-                var fileName = $("#coll_file").val();
-                if (fileName == "")
+                var name = $("#coll_name").val();
+                if (name == "")
                 {
-                        alert( "Please select a standard TIFF file to upload." );
+                        alert( "Please select name for this analysis." );
                         event.preventDefault();
                 }
                 else
@@ -80,7 +82,6 @@ $(document).ready(function()
         });
         
         $('#save_exposure_button').hide();
-        
         $('#save_exposure_button').button().click
         (function(e)
         {
@@ -111,20 +112,23 @@ $(document).ready(function()
                 });
                 
                 //submit ajax request to save exposure settings and marker postitions, and then reload the values into the readout
-                $.post( "/cdi-cgi/cdi_webmain.py", getObj );
-                //{ action: "save_exposure", file: origUrl, red_min: r_image_cutoff_min, red_max: r_image_cutoff_max, gr_min: g_image_cutoff_min, gr_max: g_image_cutoff_max } );
-                $('#exposure_readout').html("<br><table border='0'><tr><td><b>Saved Settings</b></td><td> Red: Min Pixel = " + r_image_cutoff_min + ", Max Pixel = " + r_image_cutoff_max + "</td></tr><tr><td>&nbsp;</td><td>Green: Min Pixel = " + g_image_cutoff_min + ", Max Pixel = " + g_image_cutoff_max + "</td></tr></table><br>");     
+                $.post( "/cdi-cgi/cdi_webmain.py", getObj ).done(function( data )
+                {
+                        $('#exposure_readout').html("<br><table border='0'><tr><td><b>Saved Settings</b></td><td> Red: Min Pixel = " + r_image_cutoff_min + ", Max Pixel = " + r_image_cutoff_max + "</td></tr><tr><td>&nbsp;</td><td>Green: Min Pixel = " + g_image_cutoff_min + ", Max Pixel = " + g_image_cutoff_max + "</td></tr></table><br>");     
+                
+                });
+                
+                
         });
         
-        $('#density_analysis_button').hide();
-        $('#collage_markings_button').hide();
+        $('#collage_markings_input').hide();
         $('#collage_markings_button').button().click
         (function(e)
         {
                 srcUrl = $("#file_url_hidden").val();
                 var getObj =
                 {
-                        action: 'save_markings_clip_gels',
+                        action: 'save_markings',
                         file: srcUrl,
                 };
                 var parent_pos = $("#collage").offset();
@@ -138,6 +142,48 @@ $(document).ready(function()
                         getObj[gel_id + '_height'] = Math.round($( this ).height() / collage_image_resize);
                 });
                 
+                //send this data to cdi_webmain.py and wait for request to finish
+                $('#dialog_mark').dialog("open");
+                $.post( "/cdi-cgi/cdi_webmain.py", getObj ).done(function( data )
+                {
+                        $('#dialog_mark').dialog("close");
+                        //alert("Markings saved.");
+                });
+        });
+        
+        $('#collage_markings_clip_button').button().click
+        (function(e)
+        {
+                srcUrl = $("#file_url_hidden").val();
+                var getObj =
+                {
+                        action: 'save_markings_clip_gels',
+                        file: srcUrl,
+                };
+                var parent_pos = $("#collage").offset();
+                var all_gels = "";
+                var gel_i = 0;
+                $("#collage").children().each(function( index )
+                {
+                        var pos = $( this ).position();
+                        var gel_id = this.id;
+                        getObj[gel_id + '_top'] = Math.round((pos.top-parent_pos.top) / collage_image_resize);
+                        getObj[gel_id + '_left'] = Math.round((pos.left-parent_pos.left) / collage_image_resize);
+                        getObj[gel_id + '_width'] = Math.round($( this ).width() / collage_image_resize);
+                        getObj[gel_id + '_height'] = Math.round($( this ).height() / collage_image_resize);
+                        if(gel_i == 0) { all_gels = gel_i.toString(); }
+                        else { all_gels = all_gels + ',' + gel_i.toString(); }
+                        gel_i++;
+                });
+                
+                if($('#collage_markings_clip_all').is(':checked'))
+                { getObj['collage_markings_clip_choice'] = all_gels; }
+                else
+                {
+                        var selected = $( '#collage_markings_clip_choice').val();
+                        getObj['collage_markings_clip_choice'] = selected.join();
+                }
+                
                 //send this data to cdi_webmain.py and wait for request to finish 
                 $('#dialog_clip_and_mark').dialog("open");
                 $.post( "/cdi-cgi/cdi_webmain.py", getObj ).done(function( data )
@@ -149,6 +195,7 @@ $(document).ready(function()
                 });
         });
 
+        $('#density_analysis_button').hide();
         $('#density_analysis_button').button().click
         (function(e)
         {
@@ -196,21 +243,21 @@ $(document).ready(function()
                 });
         });
         
-        $('#new_gel_format').click (function ()
-        {
-                if ($('#new_gel_format').prop('checked'))
-                {
-                        $('#num_rows').val(7);
-                        $('#num_cols').val(6);
-                        $('#num_gels').val(42);
-                }
-                else
-                {
-                        $('#num_rows').val(3);
-                        $('#num_cols').val(5);
-                        $('#num_gels').val(12);
-                }
-        });
+        //$('#new_gel_format').click (function ()
+        //{
+        //        if ($('#new_gel_format').prop('checked'))
+        //        {
+        //                $('#num_rows').val(7);
+        //                $('#num_cols').val(6);
+        //                $('#num_gels').val(42);
+        //        }
+        //        else
+        //        {
+        //                $('#num_rows').val(3);
+        //                $('#num_cols').val(5);
+        //                $('#num_gels').val(12);
+        //        }
+        //});
 
 
 });
@@ -393,18 +440,23 @@ function loadImageContent_(sourceUrl)
                         r_image_width = data[2];
                         r_image_length = data[3];
                         r_image_data = data[4];
+                        
+                        var r_image_abs_min  = Math.ceil(r_image_min*100)/100;
+                        var r_image_abs_max  = Math.floor(r_image_max);
                         if (default_readout)
                         {
-                                r_image_cutoff_min = Math.ceil(r_image_min*100)/100;
-                                r_image_cutoff_max = Math.floor(r_image_max);
-                                 
+                                r_image_cutoff_min = r_image_abs_min;
+                                r_image_cutoff_max = r_image_abs_max;
                         }
                         
                         //var s = get_step(r_image_cutoff_min);
                         
                         //min red spinner
                         $("#spinner-r-min-val").text('min pixel: ' + r_image_cutoff_min.toString());
-                        $( "#spinner-r-min" ).spinner({ min: r_image_cutoff_min, max: r_image_cutoff_max, step: .01 });
+                        
+                        //$( "#spinner-r-min" ).spinner({ min: r_image_abs_min, max: r_image_abs_max, step: .01 });
+                        $( "#spinner-r-min" ).spinner({ min: 0, step: .01 });
+                        
                         //$( "#spinner-r-min" ).spinner({ icons: { down: "ui-icon-triangle-1-s", up: "ui-icon-triangle-1-n" } });
                         $( "#spinner-r-min" ).spinner( "value", r_image_cutoff_min );
                         $( "#spinner-r-min" ).spinner({
@@ -447,8 +499,11 @@ function loadImageContent_(sourceUrl)
                         
                         //max red spinner
                         $("#spinner-r-max-val").text('max pixel: ' + r_image_cutoff_max.toString());
-                        min_max = Math.ceil(r_image_cutoff_min);
-                        $( "#spinner-r-max" ).spinner({ min: min_max, max: r_image_cutoff_max, step: 1 });
+                        var min_max = Math.ceil(r_image_abs_min);
+                        
+                        //$( "#spinner-r-max" ).spinner({ min: min_max, max: r_image_abs_max, step: 1 });
+                        $( "#spinner-r-max" ).spinner({ min: 0, step: 1 });
+                        
                         $( "#spinner-r-max" ).spinner( "value", r_image_cutoff_max );
                         $( "#spinner-r-max" ).spinner({
                                 change: function( event, ui )
@@ -493,7 +548,7 @@ function loadImageContent_(sourceUrl)
                         canvas.setAttribute('height', r_image_length);
                         
                         write_to_canvas('canvas-r', r_image_width, r_image_length, r_image_cutoff_min, r_image_cutoff_max, r_image_data);
-                
+                        
                         //place the arrows at the positions marking the bands for the ladder lane, next to red image
                         //these can be adjusted by user on this page
                         //create div with constant widht and height = height of red image, put it to the left of red image
@@ -530,10 +585,13 @@ function loadImageContent_(sourceUrl)
                                 g_image_width = data[2];
                                 g_image_length = data[3];
                                 g_image_data = data[4];
+                                
+                                var g_image_abs_min  = Math.ceil(g_image_min*100)/100;
+                                var g_image_abs_max  = Math.floor(g_image_max);
                                 if (default_readout)
                                 {
-                                        g_image_cutoff_min = Math.ceil(g_image_min*100)/100;
-                                        g_image_cutoff_max = Math.floor(g_image_max);
+                                        g_image_cutoff_min = g_image_abs_min;
+                                        g_image_cutoff_max = g_image_abs_max;
                                         var html = '<br><table border="0"><tr><td><b>Saved Settings</b></td><td> Red: Min Pixel = ' + r_image_cutoff_min.toString() + ', Max Pixel = ' + r_image_cutoff_max.toString() + '</td></tr><tr><td>&nbsp;</td><td>Green: Min Pixel = ' + g_image_cutoff_min.toString() + ', Max Pixel = ' + g_image_cutoff_max.toString() + '</td></tr></table><br>';
                                         $('#exposure_readout').html(html); 
                                 }
@@ -541,7 +599,10 @@ function loadImageContent_(sourceUrl)
                                 
                                 //min green spinner
                                 $("#spinner-g-min-val").text('min pixel: ' + g_image_cutoff_min.toString());
-                                $( "#spinner-g-min" ).spinner({ min: g_image_cutoff_min, max: g_image_cutoff_max, step: .01 });
+                                
+                                //$( "#spinner-g-min" ).spinner({ min: g_image_abs_min, max: g_image_abs_max, step: .01 });
+                                $( "#spinner-g-min" ).spinner({ min: 0, step: .01 });
+                                
                                 $( "#spinner-g-min" ).spinner( "value", g_image_cutoff_min );
                                 $( "#spinner-g-min" ).spinner({
                                         change: function( event, ui )
@@ -585,8 +646,11 @@ function loadImageContent_(sourceUrl)
                                 
                                 //max green spinner
                                 $("#spinner-g-max-val").text('max pixel: ' + g_image_cutoff_max.toString());
-                                min_max = Math.ceil(g_image_cutoff_min);
-                                $( "#spinner-g-max" ).spinner({ min: min_max, max: g_image_cutoff_max, step: 1 });
+                                min_max = Math.ceil(g_image_abs_min);
+                                
+                                //$( "#spinner-g-max" ).spinner({ min: min_max, max: g_image_abs_max, step: 1 });
+                                $( "#spinner-g-max" ).spinner({ min: 0, step: 1 });
+                                
                                 $( "#spinner-g-max" ).spinner( "value", g_image_cutoff_max );
                                  $( "#spinner-g-max" ).spinner({
                                         change: function( event, ui )
@@ -668,11 +732,10 @@ function loadDensityData(sourceUrl_bands)
                         var pos = $("#density").position();
                         var left = Math.round((density_image_resize*parseFloat(val[0])) + parseFloat(pos.left));
                         var width = Math.round((parseFloat(val[1])-parseFloat(val[0])+1)*density_image_resize);
+                        var height = Math.round((parseFloat(val[5])-parseFloat(val[4])+1)*density_image_resize);
+                        var top = Math.round((density_image_resize*parseFloat(val[4])) + parseFloat(pos.top));
                         if (val[7] == "1") 
                         {       
-                                var height = Math.round((parseFloat(val[5])-parseFloat(val[4])+1)*density_image_resize);
-                                var top = Math.round((density_image_resize*parseFloat(val[4])) + parseFloat(pos.top));
-                                
                                 $("<input type='checkbox' id='lane" + key + "' checked>")
                                         .css({"left":parseInt((left+.25*width))+"px", "position":"absolute"})
                                         .appendTo("#density_data");
@@ -687,12 +750,18 @@ function loadDensityData(sourceUrl_bands)
                                 
                         }
                         else
-                        {
+                        { 
                                 if (key != "1")
                                 {
                                         $("<input type='checkbox' id='lane" + key + "'>")
                                                 .css({"left":parseInt((left+.25*width))+"px", "position":"absolute"})
                                                 .appendTo("#density_data");
+                                        $("#density").append(
+                                        $('<div/>')
+                                                .attr("id", "rect" + key)
+                                                .addClass("ui-widget-content rect") 
+                                                .css({"width":width+"px", "height":height+"px", "top":top+"px", "left":left+"px", "position":"absolute", "border-style": "dotted"})
+                                        ).show();
                                 }
                                 
                         }
@@ -785,7 +854,7 @@ function loadContentSplitDisplay(sourceUrl, displayName, displayName2, link_id)
         document.getElementById("content").innerHTML = '';
         
         $('#density_analysis_button').hide();
-        $('#collage_markings_button').hide();
+        $('#collage_markings_input').hide();
         
         loadImageContent_(sourceUrl); 
 }
@@ -805,7 +874,7 @@ function clearDensityData()
 function loadContentBandAnalysis(sourceUrl, displayName) //, width, height)
 {
         remove_jpg_display();
-        $('#collage_markings_button').hide();
+        $('#collage_markings_input').hide();
         
         var fname = sourceUrl.replace(/^.*[\\\/]/, '');
         $('#view_name').html(displayName);
@@ -853,7 +922,7 @@ function loadContent(sourceUrl)
         document.getElementById("content").innerHTML = '';
         
         $('#density_analysis_button').hide();
-        $('#collage_markings_button').hide();
+        $('#collage_markings_input').hide();
         remove_jpg_display();
         
         if(sourceUrl.search(/\.txt$/) >= 0)
@@ -884,8 +953,10 @@ function loadCollageMarkings(sourceJSON)
 {
         //read json file for demarcation lines of gels
         //draw rectangles on gels according to json dimensions
+        
         $.getJSON( sourceJSON, function( data )
         {
+                var gel_names = [];
                 $.each( data, function( key, val )
                 {
                         if (key != 'gel-format')
@@ -900,6 +971,9 @@ function loadCollageMarkings(sourceJSON)
                                 var gel_num = parseInt(key.replace('gel-', ''));
                                 gel_num = gel_num+1;
                                 var gel_title = 'Gel ' + gel_num.toString();
+                                gel_num = gel_num-1;
+                                
+                                gel_names[gel_num] = gel_title;
                                 
                                 $("#collage").append(
                                 $('<div/>')
@@ -912,7 +986,15 @@ function loadCollageMarkings(sourceJSON)
                                 $( ".rect" ).resizable({ handles: "n, w, e, s", minHeight: 1, containment: '#collage' });
                         }
                 });
+                $.each(gel_names, function( index, value ) {
+                        $("#collage_markings_clip_choice").append($("<option/>", {
+                                value: index,
+                                text: value
+                        }));
+                });
         });
+        
+        
 }
 
 function loadContentMarkedCollage(sourceUrl)
@@ -941,9 +1023,10 @@ function loadContentMarkedCollage(sourceUrl)
                 ).show();
                 
                 sourceJSON = sourceUrl.replace('sectioned_collage.jpg', '_gel_marker_lines.json');
-                loadCollageMarkings(sourceJSON);
+                $('#collage_markings_clip_choice').empty();
+                gel_names = loadCollageMarkings(sourceJSON);
                 
-                $('#collage_markings_button').show();
+                $('#collage_markings_input').show();
                 
                 //save json url
                 $('#file_url_hidden').val(sourceJSON);     

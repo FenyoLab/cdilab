@@ -5,15 +5,83 @@ import os
 import numpy as np
 import gel_annotation as ga
 import subprocess
-import gel_signal as gs
+#import gel_signal as gs
 import pandas as pd
 import image_tools as it
 from skimage import io
 import tifffile as tf
 import math
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+import glob
 
-gr_hdri = "C:\CDI Labs\Data\New Gels\8-5-14-1-red_green-2-retry (2015-02-06-16.05.54)\\_HDRI-page-1-g.tif"
-red_hdri = "C:\CDI Labs\Data\New Gels\8-5-14-1-red_green-2-retry (2015-02-06-16.05.54)\\_HDRI-page-1-r.tif"
+#os.access("C:/temp/Test?")
+
+
+gel_dir = "C:\CDI Labs\\Data\\Test-10_30_15\\Test - flip labels (2015-10-30-16.41.47)"
+if(os.path.isfile(gel_dir + '/' + 'blah.txt')):
+    os.remove(gel_dir + '/' + 'blah.txt')
+
+txt_files = glob.glob(gel_dir + '/*.txt')
+for txt_f in txt_files:
+    (head, tail) = os.path.split(txt_f)
+    if(not tail.startswith('_') and tail != "run-log.txt"):
+        print txt_f
+        #os.remove(txt_f)
+        #break
+
+#gr_hdri = "C:\\CDI Labs\\Data\\Removing TIFF\\02-06-2015 (2015-07-29-13.50.33)\\_HDRI-page-1-g.tif"
+#red_hdri = "C:\\CDI Labs\\Data\\Removing TIFF\\02-06-2015 (2015-07-29-13.50.33)\\_HDRI-page-1-r.tif"
+#
+#tif = tf.TiffFile(gr_hdri)
+#image_flat_g = tif[0].asarray().flatten()
+#width = tif.pages[0].image_width
+#height = tif.pages[0].image_length
+#
+#tif = tf.TiffFile(red_hdri)
+#image_flat_r = tif[0].asarray().flatten()
+#
+#image_flat = []
+#for i,pixel in enumerate(image_flat_g):
+#    image_flat.append([image_flat_r[i],pixel,0])
+#    
+#image_flat = np.array(image_flat)
+#image_flat = image_flat.reshape(height,width,3)
+#
+#io.imsave("C:/temp/HDRI-r-g.tif", image_flat, plugin='tifffile')
+############
+#
+#tif = tf.TiffFile("C:/temp/HDRI-r-g.tif")
+#reloaded_image = tif[0].asarray()
+#
+#one_row_hdri = "C:\\temp\\one-row.tif"
+#tif = tf.TiffFile(one_row_hdri)
+#one_row_image = tif[0].asarray()
+#width = tif.pages[0].image_width
+#height = tif.pages[0].image_length
+#
+#x_sum_red = np.zeros((width,), dtype=np.float64)
+#x_sum_green = np.zeros((width,), dtype=np.float64)
+##get sum red/green signal across horizontal axis
+#for r_i, row in enumerate(one_row_image):
+#    for c_i, col in enumerate(row):
+#        x_sum_red[c_i] += col[0]
+#        x_sum_green[c_i] += col[1]
+#
+##plot
+#pixel_count = np.linspace(0, width-1, width)
+#fig, (ax1) = plt.subplots(1,figsize=(6,6))
+#ax1.plot(pixel_count,x_sum_red,c='r')
+#ax1.plot(pixel_count,x_sum_green,c='g')
+##ax1.set_xlim([0,len(dfp)])
+##ax1.set_ylim([0,1.05*max(dfp.peak_detection_r)])
+#fig.savefig('C:/temp/peaks.png', dpi=72, bbox_inches='tight')
+#fig.clf()
+#plt.close(fig)
+
+
+############
 
 #use the above 2 files to create a red-green tiff image
 #loads hdri pixels from red and green
@@ -21,57 +89,57 @@ red_hdri = "C:\CDI Labs\Data\New Gels\8-5-14-1-red_green-2-retry (2015-02-06-16.
 #place in R and G channels of RGB image
 #same image to file name given
     
-def map_pixel(pixel, min_, max_):
-    if(pixel > max_): return 255
-    if(pixel < min_): return 0
-    b = max_-(min_-1)
-    b = b**(1/255.)
-    out_pixel = math.log(pixel-(min_-1), b)
-    return int(out_pixel)
+#def map_pixel(pixel, min_, max_):
+#    if(pixel > max_): return 255
+#    if(pixel < min_): return 0
+#    b = max_-(min_-1)
+#    b = b**(1/255.)
+#    out_pixel = math.log(pixel-(min_-1), b)
+#    return int(out_pixel)
 
-#green#
-tif = tf.TiffFile(gr_hdri)
-
-width = tif.pages[0].image_width
-height = tif.pages[0].image_length
-image_flat = tif[0].asarray().flatten()
-min_pixel = min(image_flat)
-max_pixel = max(image_flat)
-
-gr_mapped_image_pixels = []
-for pixel in image_flat:
-    gr_mapped_image_pixels.append(map_pixel(pixel, min_pixel, max_pixel))
-gr_mapped_image_pixels = np.array(gr_mapped_image_pixels)
-gr_mapped_image_pixels = gr_mapped_image_pixels.reshape(height,width)
-
-#red#
-tif = tf.TiffFile(red_hdri)
-
-width = tif.pages[0].image_width
-height = tif.pages[0].image_length
-image_flat = tif[0].asarray().flatten()
-min_pixel = min(image_flat)
-max_pixel = max(image_flat)
-
-red_mapped_image_pixels = []
-for pixel in image_flat:
-    red_mapped_image_pixels.append(map_pixel(pixel, min_pixel, max_pixel))
-red_mapped_image_pixels = np.array(red_mapped_image_pixels)
-red_mapped_image_pixels = red_mapped_image_pixels.reshape(height,width)
-
-#final#
-red_mapped_image_pixels = np.expand_dims(red_mapped_image_pixels, 2) #add in 3rd dimension for [R,G,B]
-red_mapped_image_pixels = np.repeat(red_mapped_image_pixels, 3, 2) #repeast the value - now its same for R,G,B
-red_mapped_image_pixels = np.copy(red_mapped_image_pixels * np.array([1,0,0], dtype='uint8')) #zero out the G,B component for red
-io.imsave("C:/temp/collage-r.tif", red_mapped_image_pixels)
-
-gr_mapped_image_pixels = np.expand_dims(gr_mapped_image_pixels, 2) #add in 3rd dimension for [R,G,B]
-gr_mapped_image_pixels = np.repeat(gr_mapped_image_pixels, 3, 2) #repeast the value - now its same for R,G,B
-gr_mapped_image_pixels = np.copy(gr_mapped_image_pixels * np.array([0,1,0], dtype='uint8')) #zero out the R,B component for green
-io.imsave("C:/temp/collage-g.tif", gr_mapped_image_pixels)
-
-final_image = red_mapped_image_pixels + gr_mapped_image_pixels
-io.imsave("C:/temp/collage.tif", final_image)
+##green#
+#tif = tf.TiffFile(gr_hdri)
+#
+#width = tif.pages[0].image_width
+#height = tif.pages[0].image_length
+#image_flat = tif[0].asarray().flatten()
+#min_pixel = min(image_flat)
+#max_pixel = max(image_flat)
+#
+#gr_mapped_image_pixels = []
+#for pixel in image_flat:
+#    gr_mapped_image_pixels.append(map_pixel(pixel, min_pixel, max_pixel))
+#gr_mapped_image_pixels = np.array(gr_mapped_image_pixels)
+#gr_mapped_image_pixels = gr_mapped_image_pixels.reshape(height,width)
+#
+##red#
+#tif = tf.TiffFile(red_hdri)
+#
+#width = tif.pages[0].image_width
+#height = tif.pages[0].image_length
+#image_flat = tif[0].asarray().flatten()
+#min_pixel = min(image_flat)
+#max_pixel = max(image_flat)
+#
+#red_mapped_image_pixels = []
+#for pixel in image_flat:
+#    red_mapped_image_pixels.append(map_pixel(pixel, min_pixel, max_pixel))
+#red_mapped_image_pixels = np.array(red_mapped_image_pixels)
+#red_mapped_image_pixels = red_mapped_image_pixels.reshape(height,width)
+#
+##final#
+#red_mapped_image_pixels = np.expand_dims(red_mapped_image_pixels, 2) #add in 3rd dimension for [R,G,B]
+#red_mapped_image_pixels = np.repeat(red_mapped_image_pixels, 3, 2) #repeast the value - now its same for R,G,B
+#red_mapped_image_pixels = np.copy(red_mapped_image_pixels * np.array([1,0,0], dtype='uint8')) #zero out the G,B component for red
+#io.imsave("C:/temp/collage-r.tif", red_mapped_image_pixels)
+#
+#gr_mapped_image_pixels = np.expand_dims(gr_mapped_image_pixels, 2) #add in 3rd dimension for [R,G,B]
+#gr_mapped_image_pixels = np.repeat(gr_mapped_image_pixels, 3, 2) #repeast the value - now its same for R,G,B
+#gr_mapped_image_pixels = np.copy(gr_mapped_image_pixels * np.array([0,1,0], dtype='uint8')) #zero out the R,B component for green
+#io.imsave("C:/temp/collage-g.tif", gr_mapped_image_pixels)
+#
+#final_image = red_mapped_image_pixels + gr_mapped_image_pixels
+#io.imsave("C:/temp/collage.tif", final_image)
 
 
 #gel_file = "C:\\CDI Labs\\Data\\Test-Folder\\NewTest-Green2 (2014-07-29-10.56.00)\\_gel-00_hdr_r.txt"

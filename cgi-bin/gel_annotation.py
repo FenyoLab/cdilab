@@ -1,6 +1,6 @@
 #!/local/apps/python/2.7.7/bin/python
 
-devel_info = False #if set to True, temporary directories won't be removed
+devel_info = True #if set to True, temporary directories won't be removed
 
 import os
 import sys
@@ -18,6 +18,7 @@ import tifffile as tf
 import image_tools as it
 from skimage import io
 import json
+import copy
 #import codecs
 #from subprocess import call
 
@@ -29,6 +30,7 @@ display_ladder = (250,150,100,75,50,37)
 full_ladder_new_gels = (250,150,100,75,50,37,25,20)
 display_ladder_new_gels = (250,150,100,75,50,37)
 
+default_label_variables = {"DOXYCYCLINE":(0, 50, 1000, 1000, 50, 1000, 1000), "CELL-LINE":"HeLa", "INPUT-PERCENT":"20"}
 
 #these are the ratios for the difference-between-peaks (i.e. bands) for the ladder lane
 #these are used to determine which lanes are the ladder lanes - if we find bands with
@@ -38,24 +40,6 @@ ratio_comp_max_1=[[1.3,1.885,1.56,2.665,1.69,2.47],[1.3,1.885,1.56,2.665]]
 ratio_comp_min_2=[[0.7,0.644,0.91,0.63,0.945,0.3],[0.7,0.644,0.91,0.63]]
 ratio_comp_max_2=[[1.3,1.196,1.72,1.4,1.755,0.75],[1.3,1.196,1.72,1.4]] # [1.3,1.196,1.69,1.4,1.755,0.75]
 #ratio_comp_min/max_2 correspond to difs between bands representing ladder masses 150,100,75,50,37,25,15
-
-#ratio_comp_min_1=[0.7,1.015,0.84,1.435]
-#ratio_comp_max_1=[1.3,1.885,1.56,2.665]
-#ratio_comp_min_2=[0.7,0.644,0.91,0.63]
-#ratio_comp_max_2=[1.3,1.196,1.72,1.4]
-#ratio_comp_min/max_2 correspond to difs between bands representing ladder masses 150,100,75,50,37
-
-## u'\u03BC'
-#caption_text1 = 'Tet-ON HeLa cells were transfected with construct encoding '
-##GENE NAME01 (AN01)
-#caption_text2 = ' under a tet-inducible promoter. These cells  were stimulated with 0, 50 or 1000 ng/ml doxycycline. Immunoprecipitation (IP) was carried out using 5ug of either IgG, CDI mAb Anti-'
-##GENE* NAME01 (Catalog # JH*01)
-#caption_text3 = ' or 1 ug of  FLAG-M2. Immunoblotting was performed using 0.2ug/ml CDI mouse mAb Anti-'
-##GENE* NAME01 (Catalog #JH*01)
-#caption_text4 = '. We observe that such fusion proteins are generally expressed as a doublet with the upper band corresponding to the expected  indicates the expected size of the '
-##GENE NAME01
-#caption_text5 = ' with an N-terminal fusion of FLAG, YFP (Venus) and V5 tags.' 
-#caption_text6_gronly = ' HC=Heavy chain.'
 
 caption_text_red1 = 'Tet-ON HeLa cells were transfected with construct encoding '
 #GENE NAME01 (AN01)
@@ -171,7 +155,7 @@ def smooth(x,window_len=11,window='hanning'):
 	if window_len<1:
 		return x
 	if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-		raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+		raise ValueError, "Window is one of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
 	if window == 'flat': 
 		w=np.ones(2*window_len+1,'d')
 	else:
@@ -268,11 +252,11 @@ def check_spacing(peak_list, pixel_pos, lane_width, bin_x):
 	return True
 
 #####################################################################################################################
-def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_filename_g, labels_filename, im_dir, os_type, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10):
+def clip_and_mark_gels(json_filename, gel_choices, hdr_filename_r, hdr_filename_g, labels_filename, im_dir, os_type, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10):
 #clips the gels from the collage using the rect coords in the json file
 #tries to find the bands on each gel that correspond to the ladder masses and outputs json file with rect coordinates
-		
 	labels = pd.read_table(labels_filename)
+	num_rows_labels = len(labels.index)
 	
 	#organize files/directories and variables
 	(head, tail) = os.path.split(json_filename)
@@ -280,6 +264,8 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 	out_dir = head 
 	temp_dir = head + '/_clip-gels-' + date + '-' + 'TEMP'
 	os.mkdir(temp_dir)
+	
+	jpg_collage_file = head + '/sectioned_collage.jpg'
 	
 	if(os_type == 'WINDOWS'):
 		os.chdir(im_dir)
@@ -309,25 +295,32 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 	result_scale_x = scale_x
 	result_scale_y = scale_y
 	
-	for gel_id in gel_marker_info:
-		if(gel_id == 'gel-format'):
+	gel_choices = gel_choices.split(',')
+	for gel_id in gel_choices:
+		gel_i = int(gel_id)
+		if(len(gel_id) == 1):
+			gel_id = 'gel-0' + gel_id
+		else:
+			gel_id = 'gel-' + gel_id
+		
+		if(gel_i >= num_rows_labels):
+		#user put wrong number of gels in the dialog box so program thinks there's more gels than there actually are
+		#metadata file has 1 row per gel, so if we have "more" gels than there are rows, ignore the ones at the end
 			continue
-		gel_i = gel_id.lstrip('gel-')
-		gel_i = int(gel_i)
 		
 		cropped_gel_file = gel_id + '-cropped.tif'
-		cropped_markers_file = gel_id + '-markers.tif'
+		cropped_markers_file = gel_id + '-markers.txt'
 		##################################
 		#clip out gels
-		os.system(convert_cmd + ' "' + tif_collage_file + '" -auto-level -crop ' +
+		os.system(convert_cmd + ' "' + jpg_collage_file + '" -auto-level -crop ' +
 			  str(gel_marker_info[gel_id][1]) + 'x' + str(gel_marker_info[gel_id][3]) +
 			  '+' + str(gel_marker_info[gel_id][0]) + '+' + str(gel_marker_info[gel_id][2]) +
 			  ' "' + temp_dir + '/' + cropped_gel_file + '"')
 		
 		#save cropped gel as _gel-xx-r-d.jpg (red channel only) for use with densitometric analysis
-		os.system(convert_cmd + ' -separate -channel R "' + temp_dir + '/' + cropped_gel_file + '" "' + temp_dir + '/' + cropped_gel_file + '_RGB-%d.tif"')
-		os.system(convert_cmd + ' -auto-level -negate "' + temp_dir + '/' + cropped_gel_file + '_RGB-0.tif" "' + out_dir + '/_' + gel_id + '-r-d.jpg"')
-		os.unlink(temp_dir + '/' + cropped_gel_file + '_RGB-0.tif')
+		os.system(convert_cmd + ' -separate -channel R "' + temp_dir + '/' + cropped_gel_file + '" "' + temp_dir + '/' + cropped_gel_file + '_RGB-%d.jpg"')
+		os.system(convert_cmd + ' -auto-level -negate "' + temp_dir + '/' + cropped_gel_file + '_RGB-0.jpg" "' + out_dir + '/_' + gel_id + '-r-d.jpg"')
+		os.unlink(temp_dir + '/' + cropped_gel_file + '_RGB-0.jpg')
 		
 		#stretch
 		os.system(convert_cmd + ' "' + temp_dir + '/' + cropped_gel_file + '" -scale ' +
@@ -337,14 +330,16 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 		#images used for densitometric analysis#############################
 		#cut out and copy HDRI gel to output directory - note removed autolevel from hdr crop b/c not sure if it will work correctly
 		#NOTE* change this to manually crop since ImageMagick crop is introducing invalid information in the txt file!
+		hdr_filename_r_txt = out_dir + '/_' + gel_id + '_hdr_r.txt'
+		hdr_filename_g_txt = out_dir + '/_' + gel_id + '_hdr_g.txt'
 		os.system(convert_cmd + ' "' + hdr_filename_r + '" -crop ' +
 			  str(gel_marker_info[gel_id][1]) + 'x' + str(gel_marker_info[gel_id][3]) +
 			  '+' + str(gel_marker_info[gel_id][0]) + '+' + str(gel_marker_info[gel_id][2]) + 
-			  ' "' + out_dir + '/_' + gel_id + '_hdr_r.txt"')
+			  ' "' + hdr_filename_r_txt + '"')
 		os.system(convert_cmd + ' "' + hdr_filename_g + '" -crop ' +
 			  str(gel_marker_info[gel_id][1]) + 'x' + str(gel_marker_info[gel_id][3]) +
 			  '+' + str(gel_marker_info[gel_id][0]) + '+' + str(gel_marker_info[gel_id][2]) + 
-			  ' "' + out_dir + '/_' + gel_id + '_hdr_g.txt"')
+			  ' "' + hdr_filename_g_txt + '"')
 		
 		it.crop_image_json(int(gel_marker_info[gel_id][1]), int(gel_marker_info[gel_id][3]), int(gel_marker_info[gel_id][0]), int(gel_marker_info[gel_id][2]), out_dir + '/_' + gel_id + '-r.json', image_hdr_r)
 		it.crop_image_json(int(gel_marker_info[gel_id][1]), int(gel_marker_info[gel_id][3]), int(gel_marker_info[gel_id][0]), int(gel_marker_info[gel_id][2]), out_dir + '/_' + gel_id + '-g.json', image_hdr_g)
@@ -362,15 +357,12 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 		
 		#convert to text and read in the image data
 		#scaling down y-axis to 3 values - this sums the value on y-axis into 3 'bins' 
-		os.system(convert_cmd + ' "' + temp_dir + '/' + cropped_gel_file + '" -scale ' +
+		os.system(convert_cmd + ' "' + hdr_filename_r_txt + '" -scale ' +
 			  str(scale_x_) + 'x' + str(scale_y_) + '! "' + temp_dir + '/' + cropped_gel_file + '.txt"')
-		df = pd.read_table(temp_dir + '/' + cropped_gel_file + '.txt', header=None, skiprows=1, comment='#', sep='[,:()]')
+		df = pd.read_table(temp_dir + '/' + cropped_gel_file + '.txt', header=None, skiprows=1, comment='#', sep='[,:()]',
+				   converters={'r':p2f, 'g':p2f, 'b':p2f}, names=('x','y','e1','r','g','b','e2'))
+		df=df.drop(['e1','e2'], axis=1)
 		os.unlink(temp_dir + '/' + cropped_gel_file + '.txt')
-		if('X2' in df.columns): 
-			df=df.drop(['X2','X6'], axis=1) 
-		else:
-			df=df.drop([2,6], axis=1)
-		df.columns=['x','y','r','g','b']
 		
 		#create a table with, for each x-value and each y-value (0,1,2), the r,g and b values can be retrieved
 		dfp=df.pivot_table(rows=['x'], cols=['y'], aggfunc=np.sum)
@@ -405,43 +397,42 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 			scale_x__=0
 			
 		#cut out the marker lane (using the current peak location)
-		os.system(convert_cmd + ' "' + temp_dir + '/' + cropped_gel_file + '" -crop ' +
-			  str(scale_x____) + 'x' + str(scale_y) + '+' + str(scale_x__+gel_marker_info[gel_id][0]) +
-			  '+' + str(gel_marker_info[gel_id][2]) + ' "' + temp_dir + '/' + cropped_markers_file + '"')
+		
+		#os.system(convert_cmd + ' "' + hdr_filename_r_txt + '" -crop ' +
+		#	  str(scale_x____) + 'x' + str(scale_y) + '+' + str(scale_x__+gel_marker_info[gel_id][0]) +
+		#	  '+' + str(gel_marker_info[gel_id][2]) + ' "' + temp_dir + '/' + cropped_markers_file + '"')
 		#(in above, must crop from pixel offset of the original image b/c when cropping ImageMagick uses virtual canvas
 		#for the cropped image)
+		
+		os.system(convert_cmd + ' "' + hdr_filename_r_txt + '" -crop ' +
+			  str(scale_x____) + 'x' + str(scale_y) + '+' + str(scale_x__) +
+			  '+0 "' + temp_dir + '/' + cropped_markers_file + '"')
 		os.system(convert_cmd + ' "' + temp_dir + '/' + cropped_markers_file + '" ' +
-			  '-scale 1x' + str(scale_y) + '! "' + temp_dir + '/' + cropped_markers_file + '.txt"')
+			  '-scale 1x' + str(scale_y) + '! "' + temp_dir + '/' + cropped_markers_file + '_.txt"')
 		
 		#read in the 1x image text file of the marker lane, generated above
-		df_test = pd.read_table(temp_dir + '/' + cropped_markers_file + '.txt', header=None, skiprows=1, comment='#', sep='[,:()]') 
-		#os.unlink(temp_dir + '/' + cropped_markers_file + '.txt')
-		if('X1' in df.columns): 
-			df_test.index=df_test.X1
-			df_test=df_test.drop(['X0','X1','X2','X6'], axis=1)
-		else:
-			df_test.index=df_test[1]
-			df_test=df_test.drop([0,1,2,6], axis=1)
-		df_test.columns=['r','g','b']
+		df_test = pd.read_table(temp_dir + '/' + cropped_markers_file + '_.txt', header=None, skiprows=1, comment='#', sep='[,:()]',
+					converters={'r':p2f, 'g':p2f, 'b':p2f}, names=('x','y','e1','r','g','b','e2'))
+		df_test.index = df_test.y
+		df_test=df_test.drop(['x', 'y', 'e1','e2'], axis=1)
+		os.unlink(temp_dir + '/' + cropped_markers_file + '_.txt')
 		
 		#smoothing and background subtraction of red signal - now we are reading vertically
 		if(new_gel_format):
-			df_test.r_orig = df_test.r
 			df_test.r=smooth(df_test.r,1,'flat')
 			df_test.r-=min(df_test.r)
-			df_test.r-=sorted(df_test.r)[int(len(df_test.r)*0.10)] 
+			#df_test.r-=sorted(df_test.r)[int(len(df_test.r)*0.10)]   #*0.10)] 
 			df_test['r'][df_test.r<0]=0
-			df_test['background']=smooth(df_test.r,26,'flat')
-			#df_test['rg']=df_test.r-df_test.background 
-			df_test['rg']=df_test.r_orig-df_test.background
-			df_test['rg'][df_test.rg<0.08*max(df_test.rg)]=0
+			df_test['background']=smooth(df_test.r,13,'flat') #adjusted smoothing by half since using hdri #13
+			df_test['rg']=df_test.r-df_test.background 
+			#df_test['rg'][df_test.rg<0.08*max(df_test.rg)]=0
 		else:
 			df_test.r_orig = df_test.r
 			df_test.r=smooth(df_test.r,1,'flat')
 			df_test.r-=min(df_test.r)
 			df_test.r-=sorted(df_test.r)[int(len(df_test.r)*0.25)]
 			df_test['r'][df_test.r<0]=0
-			df_test['background']=smooth(df_test.r,51,'flat')
+			df_test['background']=smooth(df_test.r,26,'flat') #adjusted smoothing by half since using hdri
 			df_test['rg']=df_test.r-df_test.background 
 			df_test['rg'][df_test.rg<0.08*max(df_test.rg)]=0
 		
@@ -479,19 +470,20 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 		
 		#find peaks in the marker lane - these correspond to the bands - take the top 'num_labels' peaks
 		if(new_gel_format):
-			(peaks_x_,peaks_y_)=find_peaks(df_test.index, df_test.rg, num_labels, 0,5,5,0.10) #,10,5) # <-keep for old gels!
+			#(peaks_x_,peaks_y_)=find_peaks(df_test.index, df_test.rg, num_labels, 0,5,0,0.10)
+			(peaks_x_,peaks_y_)=find_peaks(df_test.index, df_test.rg, num_labels, 0,5,0,0.1) #test this right here!
 		else:
-			(peaks_x_,peaks_y_)=find_peaks(df_test.index, df_test.rg, num_labels, 0,10,5)
+			(peaks_x_,peaks_y_)=find_peaks(df_test.index, df_test.rg, num_labels, 0,10,0)
 		
 		if(devel_info):
 			fig, (ax1) = plt.subplots(1,figsize=(6,6))
 			ax1.plot(df_test.index,df_test.rg,c='black')
 			ax1.plot(df_test.index,df_test.background,c='gray')
 			ax1.plot(df_test.index,df_test.r,c='r')
-			ax1.plot(df_test.index,df_test.r_orig,c='r')
+			#ax1.plot(df_test.index,df_test.r_orig,c='b')
 			
 			ax1.set_xlim([0,len(df_test)])
-			ax1.set_ylim([0,1.05*max([max(df_test.r),max(df_test.rg),max(df_test.r_orig)])])
+			ax1.set_ylim([0,1.05*max([max(df_test.r),max(df_test.rg)])])
 			ax1.scatter(peaks_x_,peaks_y_,c='r')
 			fig.savefig(temp_dir+'/marker_peaks-'+gel_id+'.png',dpi=72,bbox_inches='tight')
 			fig.clf()
@@ -512,13 +504,25 @@ def clip_and_mark_gels(json_filename, tif_collage_file, hdr_filename_r, hdr_file
 		json.dump(marker_labels, f)
 		f.close()
 	#delete temp directory
-	if(not devel_info): shutil.rmtree(temp_dir)
-		
-def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num_gels=12, num_x=5, num_y=3, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10):
+	if(not devel_info):
+		shutil.rmtree(temp_dir)
+	return num_rows_labels
+
+#to convert % to float in pandas read_table
+def p2f(x):
+	if(x == None):
+		return 0.01
+	elif("inf" in x or "INF" in x):
+		return 1
+	else:
+		return float(x.strip('%'))/100
+
+def mark_collage(new_gel_format, filename_hdri_red, filename_hdri_gr, labels_filename, im_dir, os_type, num_gels=12, num_x=5, num_y=3, scale_x=272, scale_y=468, bin_x=5, lane_width=14, max_ladder_peaks = 10):
+# else vice versa
 #tries to find demarcations between gels in the gell collage
 #outputs json file indicating where the boxes should be drawn on the image for the user to adjust
 #and where the markers in the marker lanes are located
-	
+
 	#new_gel_format = True
 	new_way_gel_width = True
 	if(new_gel_format):
@@ -527,8 +531,10 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 		max_ladder_peaks=8
 		new_gels_min_gel_height=150
 		background_smooth_window = 26
+		background_smooth_window = 13
 	else:
 		background_smooth_window = 51
+		background_smooth_window = 26
 	
 	labels = pd.read_table(labels_filename)
 	
@@ -536,17 +542,30 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 	#these will be saved as json files
 	gel_markers = {}
 	
+	if(os_type == 'WINDOWS'):
+		os.chdir(im_dir)
+		convert_cmd = 'convert'
+	else:
+		convert_cmd = im_dir + '/convert'
+	
 	# (0) organize files/directories and variables
-	(head, tail) = os.path.split(filename)
+	(head, tail) = os.path.split(filename_hdri_red)
 	date=datetime.datetime.now().strftime("%Y-%m-%d-%H.%M.%S")
 	out_dir = head #+ '/gels (' + date + ')'
 	#os.mkdir(out_dir)
 	temp_dir = head + '/_gels-' + date + '-' + 'TEMP'
 	os.mkdir(temp_dir)
 	
-	tif = tf.TiffFile(filename)
-	true_length = tif.pages[0].image_length
-	true_width = tif.pages[0].image_width
+	#combine red/green hdri's and output single hdri and also jpg file for browser display
+	filename = head + '/_sectioned_collage.tif'
+	filename_ = head + '/sectioned_collage.tif'
+	(true_length, true_width) = it.hdri_to_tiff_and_combine(filename_hdri_gr, filename_hdri_red, filename, filename_)
+	
+	#convert tiff to jpg using ImageMagick
+	os.system(convert_cmd + ' "' + filename_ + '" "' + filename_.replace(".tif", ".jpg") + '"')
+	if(not devel_info):
+		os.unlink(filename_)
+	
 	
 	#below lines will set it up so that there's no rescaling at the beginning, only at the end before producing image to be used for labeling
 	#I don't want rescaling at the beginning b/c I want to use the gel end points to cut the original image for densitometric analysis
@@ -564,9 +583,6 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 		convert_cmd = 'convert'
 	else:
 		convert_cmd = im_dir + '/convert'
-		
-	#conver tiff file to jpg for browser display
-	os.system(convert_cmd + ' "' + filename + '" "' + head + '/sectioned_collage.jpg"')
 	
 	# (1) resizing image, creating one long image instead of rows of gels
 	if(new_gel_format):
@@ -574,14 +590,20 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 		#scaling down y-axis to 3 values - this sums the value on y-axis into 3 'bins' (?)
 		os.system(convert_cmd + ' "' + filename + '" -scale 3x' + str(true_length) + '! "' + temp_dir + '/y-flat.txt"')
 		
-		#read in image data (from scaled down image above)
-		df = pd.read_table(temp_dir + '/y-flat.txt', header=None, skiprows=1, comment='#', sep='[,:()]')
+		#df = pd.read_table(temp_dir + '/y-flat.txt', header=None, skiprows=1, comment='#', sep='[,:()]',
+		#			names=('x','y','e1','r','g','b','e2'))
+		#
+		#if(devel_info): df.to_csv(head + '/df_file1.csv')
 		
-		if('X2' in df.columns): 
-			df=df.drop(['X2','X6'], axis=1) 
-		else:
-			df=df.drop([2,6], axis=1)
-		df.columns=['x','y','r','g','b']
+		#read in image data (from scaled down image above)
+		# 0,556: (4012.91%,inf%,0%)  #FFFFFFFF0000  srgb(4012.91%,inf%,0%)
+		# 0,556: (4012.91%,1.#INF%,0%)  #FFFFFFFF0000  srgb(4012.91%,1.#inf%,0%)
+		df = pd.read_table(temp_dir + '/y-flat.txt', header=None, skiprows=1, comment='#', sep='[,:()]',
+				   converters={'r':p2f, 'g':p2f, 'b':p2f}, names=('x','y','e1','r','g','b','e2'))
+		
+		#if(devel_info): df.to_csv(head + '/df_file2.csv')
+		
+		df=df.drop(['e1','e2'], axis=1)
 		
 		#create a table with, for each x-value and each y-value (0,1,2), the r,g and b values can be retrieved
 		dfp=df.pivot_table(rows=['y'], cols=['x'], aggfunc=np.sum)
@@ -640,19 +662,26 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 		
 		#cutting out the rows
 		gel_rows = sorted(peaks_x_r_temp) #store this for cutting and also for later when we cut out the individual gels
+		max_height = 0
 		for i in range(num_y):
 			cur_height = gel_rows[i+1]-gel_rows[i]
-			os.system(convert_cmd + ' "' + filename + '" -auto-level -crop '+str(true_width)+'x'+str(cur_height)+'+0+'+str(gel_rows[i])+' "'+temp_dir+'/cut'+str(i)+'.tif"')
+			if(max_height < cur_height): max_height = cur_height
+			os.system(convert_cmd + ' "' + filename + '" -crop '+str(true_width)+'x'+str(cur_height)+'+0+'+str(gel_rows[i])+' "'+temp_dir+'/cut'+str(i)+'.tif"')
+			if(devel_info):
+				os.system(convert_cmd + ' "' + filename_ + '" -crop '+str(true_width)+'x'+str(cur_height)+'+0+'+str(gel_rows[i])+' "'+temp_dir+'/cut'+str(i)+'_.tif"')
 		#combining the cut out rows into one long row
 		shutil.copy(temp_dir + '/cut0.tif', temp_dir + '/one-row.tif')
+		if(devel_info):
+			shutil.copy(temp_dir + '/cut0_.tif', temp_dir + '/one-row_.tif')
 		for i in range(1,num_y):
 			os.system(convert_cmd + ' "' + temp_dir + '/one-row.tif" "' + temp_dir + '/cut' + str(i) + '.tif" -background black +append "' + temp_dir + '/one-row.tif"')
+			if(devel_info):
+				os.system(convert_cmd + ' "' + temp_dir + '/one-row_.tif" "' + temp_dir + '/cut' + str(i) + '_.tif" -background black +append "' + temp_dir + '/one-row_.tif"')
 			if(not devel_info): os.unlink(temp_dir + '/cut' + str(i) + '.tif')
 	else:
 		#cutting out the 3 rows
 		for i in range(num_y):
-			###os.system(convert_cmd + ' "' + filename + '" -auto-level -scale '+str(num_x*scale_x)+'x'+str(num_y*scale_y)+'! -crop '+str(num_x*scale_x)+'x'+str(scale_y)+'+0+'+str(i*scale_y)+' "'+temp_dir+'/cut'+str(i)+'.tif"')
-			os.system(convert_cmd + ' "' + filename + '" -auto-level -crop '+str(true_width)+'x'+str(scale_y)+'+0+'+str(i*scale_y)+' "'+temp_dir+'/cut'+str(i)+'.tif"')
+			os.system(convert_cmd + ' "' + filename + '" -crop '+str(true_width)+'x'+str(scale_y)+'+0+'+str(i*scale_y)+' "'+temp_dir+'/cut'+str(i)+'.tif"')
 		
 		#combining the 3 cut out rows into one long row
 		shutil.move(temp_dir + '/cut0.tif', temp_dir + '/one-row.tif')
@@ -662,32 +691,37 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 			
 	#(2) finding the ladder lanes
 	#scaling down y-axis to 3 values - this sums the value on y-axis into 3 'bins' (?)
+	if(devel_info):
+		os.system(convert_cmd + ' "' + temp_dir + '/one-row_.tif" -scale ' + str(scale_x_) + 'x' + str(int(max_height/(1.0*bin_x))) + '! "' + temp_dir + '/one-row_scaled.tif"')
+	
 	os.system(convert_cmd + ' "' + temp_dir + '/one-row.tif" -scale ' + str(scale_x_) + 'x' + str(scale_y_) + '! "' + temp_dir + '/one-row.txt"')
 	
 	#read in image data (from scaled down image above)
-	df = pd.read_table(temp_dir + '/one-row.txt', header=None, skiprows=1, comment='#', sep='[,:()]')
-	os.unlink(temp_dir + '/one-row.txt')
-	if('X2' in df.columns): #<--check this works!  different versions of pandas?
-		df=df.drop(['X2','X6'], axis=1) 
-	else:
-		df=df.drop([2,6], axis=1)
-	df.columns=['x','y','r','g','b']
+	df = pd.read_table(temp_dir + '/one-row.txt', header=None, skiprows=1, comment='#', sep='[,:()]',
+				   converters={'r':p2f, 'g':p2f, 'b':p2f}, names=('x','y','e1','r','g','b','e2'))
+	df=df.drop(['e1','e2'], axis=1)
+	df.replace(0,{'r':1, 'g':1},True)
+	
+	if(not devel_info):
+		os.unlink(temp_dir + '/one-row.txt')
 	
 	#create a table with, for each x-value and each y-value (0,1,2), the r,g and b values can be retrieved
 	dfp=df.pivot_table(rows=['x'], cols=['y'], aggfunc=np.sum)
 	
+	#print dfp
+	
 	#create column in table that, for each x-value, is the product of the y-values (one for each of red, green and blue)
 	dfp['peak_detection_r']=1
-	for i in range(3):
+	for i in range(scale_y_):
 		dfp['peak_detection_r']*=dfp[('r',i)]
 	dfp['peak_detection_g']=1
-	for i in range(3):
+	for i in range(scale_y_):
 		dfp['peak_detection_g']*=dfp[('g',i)]
 	dfp['peak_detection_b']=1
-	for i in range(3):
+	for i in range(scale_y_):
 		dfp['peak_detection_b']*=dfp[('b',i)]
 	dfp['peak_detection_rg']=1
-	for i in range(3):
+	for i in range(scale_y_):
 		dfp['peak_detection_rg']*=dfp[('r',i)]-dfp[('g',i)]
 		
 	#also create column for red minus green
@@ -727,18 +761,17 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 			
 		#cut out the marker lane (using the current peak location)
 		os.system(convert_cmd + ' "' + temp_dir+'/one-row.tif" -crop '+str(scale_x____)+'x'+str(scale_y)+'+'+str(scale_x__)+'+0 "'+temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-markers.tif"')
+		if(devel_info):
+			os.system(convert_cmd + ' "' + temp_dir+'/one-row_.tif" -crop '+str(scale_x____)+'x'+str(scale_y)+'+'+str(scale_x__)+'+0 "'+temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-markers_.tif"')
 		os.system(convert_cmd + ' "' + temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-markers.tif" ' + '-scale 1x'+str(scale_y)+'! "'+temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-markers.txt"')
 		
 		#read in the 1x image text file of the marker lane, generated above
-		df_test = pd.read_table(temp_dir + '/test-' + str(peaks_x_r_temp[i]) + '-markers.txt', header=None, skiprows=1, comment='#', sep='[,:()]') #then del file!
-		os.unlink(temp_dir + '/test-' + str(peaks_x_r_temp[i]) + '-markers.txt')
-		if('X1' in df.columns): #<--check this works!  different versions of pandas?
-			df_test.index=df_test.X1
-			df_test=df_test.drop(['X0','X1','X2','X6'], axis=1)
-		else:
-			df_test.index=df_test[1]
-			df_test=df_test.drop([0,1,2,6], axis=1)
-		df_test.columns=['r','g','b']
+		df_test = pd.read_table(temp_dir + '/test-' + str(peaks_x_r_temp[i]) + '-markers.txt', header=None, skiprows=1, comment='#', sep='[,:()]',
+				   converters={'r':p2f, 'g':p2f, 'b':p2f}, names=('x','y','e1','r','g','b','e2'))
+		df_test.index = df_test.y
+		df_test=df_test.drop(['x', 'y', 'e1','e2'], axis=1)
+		if(not devel_info):
+			os.unlink(temp_dir + '/test-' + str(peaks_x_r_temp[i]) + '-markers.txt')
 		
 		#smoothing and background subtraction of red signal - now we are reading vertically
 		df_test.r=smooth(df_test.r,1,'flat')
@@ -766,7 +799,8 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 		peaks_y_=[]
 		
 		#find peaks in the marker lane - these correspond to the bands
-		(peaks_x_,peaks_y_)=find_peaks(df_test.index,df_test.rg,max_ladder_peaks,0,10,5)
+		(peaks_x_,peaks_y_)=find_peaks(df_test.index,df_test.rg,max_ladder_peaks,0,10,0)
+			
 		#rearrange:
 		peaks_x_y = []
 		for i_v,v in enumerate(peaks_x_):
@@ -801,13 +835,23 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 			if(max_num_peaks < len(peaks_x_)): max_num_peaks = len(peaks_x_)
 			if(max_band_ratios_match < band_ratios_match): max_band_ratios_match = band_ratios_match
 			
-			peaks_found.append([i,len(peaks_x_),std_norm,green_ratio,band_ratios_match])
-			
+			peaks_found.append([i,len(peaks_x_),std_norm,green_ratio,band_ratios_match])	
+		else:
 			if(devel_info):
-				fig.savefig(temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-peaks.png',dpi=72,bbox_inches='tight')
-				fig.clf()
-				plt.close(fig)
+				fig, (ax1) = plt.subplots(1,figsize=(6,6))
+				ax1.plot(df_test.index,df_test.rg,c='black')
+				#ax1.plot(df_test.index,df_test.gg,c='blue')
+				ax1.plot(df_test.index,df_test.background,c='gray')
+				ax1.plot(df_test.index,df_test.r,c='r')
+				ax1.plot(df_test.index,df_test.g,c='yellow')
+				ax1.plot(df_test.index,df_test.gg,c='green')
+				ax1.set_xlim([0,len(df_test)])
+				ax1.set_ylim([0,1.05*max([max(df_test.r),max(df_test.rg),max(df_test.b),max(df_test.g),max(df_test.gg)])])
 				
+		if(devel_info):
+			fig.savefig(temp_dir+'/test-'+str(peaks_x_r_temp[i])+'-peaks.png',dpi=72,bbox_inches='tight')
+			fig.clf()
+			plt.close(fig)
 	
 	#marker lanes are the top lanes in peaks_found (those with most peaks found)
 	peaks_x_r = []
@@ -879,8 +923,9 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 		if(devel_info):
 			#the cropped gel image - version 0 - with full height
 			os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -crop '+str(scale_x___)+'x'+str(scale_y)+'+'+str(scale_x__)+'+0 "'+temp_dir+'/gel'+str(i)+'.tif"')
-		
-		
+			if(devel_info):
+				os.system(convert_cmd + ' "' +temp_dir+'/one-row_.tif" -crop '+str(scale_x___)+'x'+str(scale_y)+'+'+str(scale_x__)+'+0 "'+temp_dir+'/gel'+str(i)+'_.tif"')
+
 		#finding top and bottom of the marker lane - cut off bands at top/bottom that aren't part of ladder
 		
 		#read the current ladder configuration from the labels file, set cur_ladder
@@ -936,7 +981,7 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 		start_peak=0
 		if(len(peaks_x_sorted___) < 2): top = 0
 		else:
-			top=peaks_x_sorted___[start_peak] - (l_i)*(peaks_x_sorted___[start_peak+1]-peaks_x_sorted___[start_peak]) - .5*(peaks_x_sorted___[start_peak+1]-peaks_x_sorted___[start_peak])
+			top=peaks_x_sorted___[start_peak] - (l_i)*(peaks_x_sorted___[start_peak+1]-peaks_x_sorted___[start_peak]) - .75*(peaks_x_sorted___[start_peak+1]-peaks_x_sorted___[start_peak])
 		if(top < 0): top = 0
 		
 		found_37 = False
@@ -950,22 +995,22 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 			else: end_peak = len(cur_ladder)-1
 		
 		#l_i is the number of bands away from  band of 37  we want to show the band at 37, but not much further below
-		bottom = peaks_x_sorted___[end_peak] + .5*(peaks_x_sorted___[end_peak]-peaks_x_sorted___[end_peak-1])
+		bottom = peaks_x_sorted___[end_peak] + .75*(peaks_x_sorted___[end_peak]-peaks_x_sorted___[end_peak-1])
 		
 		#the cropped gel image - version 1
-		os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -auto-level -crop '+str(scale_x___)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped.tif"')
-		
+		os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -crop '+str(scale_x___)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped.tif"')
+		##
+		if(devel_info):
+			os.system(convert_cmd + ' "' +temp_dir+'/one-row_.tif" -crop '+str(scale_x___)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped_.tif"')
+		##
 		#read in cropped gel image as txt (y-axis collapsed)
 		os.system(convert_cmd + ' "' +temp_dir+'/gel'+str(i)+'-cropped.tif" -scale '+str(int(scale_x___))+'x1! "'+temp_dir+'/gel'+str(i)+'-cropped.txt"')
-		df__ = pd.read_table(temp_dir+'/gel'+str(i)+'-cropped.txt',header=None,skiprows=1,comment='#',sep='[,:()]')
+		df__ = pd.read_table(temp_dir+'/gel'+str(i)+'-cropped.txt',header=None,skiprows=1,comment='#',sep='[,:()]',
+				   converters={'r':p2f, 'g':p2f, 'b':p2f}, names=('x','y','e1','r','g','b','e2'))
+		df__.index = df__.x
+		df__=df__.drop(['x', 'y', 'e1','e2'], axis=1)
+		
 		os.unlink(temp_dir+'/gel'+str(i)+'-cropped.txt')
-		if('X0' in df__.columns): #<--check this works!  different versions of pandas?
-			df__.index=df__.X0
-			df__=df__.drop(['X0','X1','X2','X6'], axis=1)
-		else:
-			df__.index=df__[0]
-			df__=df__.drop([0,1,2,6], axis=1)
-		df__.columns=['r','g','b']
 		
 		#smoothing and background subtraction
 		df__.r-=min(df__.r)
@@ -1084,8 +1129,9 @@ def mark_collage(new_gel_format, filename, labels_filename, im_dir, os_type, num
 					 int(top+gel_y_offset),int(bottom-top)]
 		if(devel_info):
 			#the cropped gel image - version 2
-			os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -auto-level -crop '+str(gel_width)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped_.tif"')
-		
+			os.system(convert_cmd + ' "' +temp_dir+'/one-row.tif" -crop '+str(gel_width)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped_2.tif"')
+			if(devel_info):
+				os.system(convert_cmd + ' "' +temp_dir+'/one-row_.tif" -crop '+str(gel_width)+'x'+str(bottom-top)+'+'+str(scale_x__)+'+'+str(top)+' "'+temp_dir+'/gel'+str(i)+'-cropped_2_.tif"')
 			
 	if(new_gel_format):
 		gel_markers['gel-format'] = 'new'
@@ -1111,9 +1157,11 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 	if(new_gel_format):
 		#scale_x*=.7
 		scale_y = 180 #*=.5
-		(head, tail) = os.path.split(annotation_filename)
-		tail = tail.replace(".png", "_new.png")
-		annotation_filename = head + '/' + tail
+		
+		#removed, now using same annotation file for both
+		#(head, tail) = os.path.split(annotation_filename)
+		#tail = tail.replace(".png", "_new.png")
+		#annotation_filename = head + '/' + tail
 		
 		
 	date=datetime.datetime.now().strftime("%Y-%m-%d-%H.%M.%S")
@@ -1121,6 +1169,9 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 	os.mkdir(out_dir)
 	temp_dir = directory + '/' + '_labeled-' + date + '-' + 'TEMP'
 	os.mkdir(temp_dir)
+	
+	#copy metadata file
+	shutil.copy(labels_filename, out_dir + '/metadata.txt')
 	
 	#load exposure settings:
 	exp_dict = {}
@@ -1143,13 +1194,19 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 	
 	file_list = glob.glob(directory + '/*.tif')
 	labels = pd.read_table(labels_filename)
+	num_rows_labels = len(labels.index)
 	for fname in file_list:
 		if(fname.startswith('_')): continue
 		(head, tail) = os.path.split(fname)
 		(root, ext) = os.path.splitext(tail)
 		mo = re.search('gel-(\d\d).tif', tail)
-		if(mo): i = int(mo.group(1))
-		else: continue 
+		if(mo):
+			i = int(mo.group(1))
+		else:
+			continue
+		
+		if(i >= num_rows_labels):
+			continue
 		
 		if(os_type == 'WINDOWS'):
 			batch_file = temp_dir + '/' + root + '.bat'
@@ -1205,8 +1262,8 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 		
 		gel_markers = {}
 		for marker in gel_marker_info:
-			px = int(gel_marker_info[marker])
-			if(px >= 0): gel_markers[int(marker)] = px
+			px = int(float(gel_marker_info[marker]))
+			if(px >= 0): gel_markers[int(float(marker))] = px
 			
 		cur_ladder = []
 		ladder_peaks = []
@@ -1274,8 +1331,135 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 		os.system(convert_cmd + ' "' + annotation_filename + '" "' + red_gel_masses + '" -gravity east -append "' + red_gel_ann + '"') 
 		os.system(convert_cmd + ' "' + annotation_filename + '" "' + green_gel_masses + '" -gravity east -append "' + green_gel_ann + '"')
 		
+		#fill in doxycycline amounts for the annotation:  
+		#use default or if given in metadata file, then use the amounts from there...
+		#read in the density guidebox positions to get pixel position to place the amounts above each lane
+		f = open(directory + '/_' + root + '_hdr_r.band_info.json', 'r') 
+		band_info = json.load(f)
+		f.close()
+		
+		label_variables = copy.deepcopy(default_label_variables)
+		for label_var in label_variables.keys():
+			found_label = ""
+			for label in labels.columns:
+				if(label.upper() == label_var):
+					found_label = label
+					break
+			if(found_label):
+				label_value = labels[found_label][i]
+				if(type(label_value) == type('') or not np.isnan(label_value)):
+					if(label_var == "DOXYCYCLINE"):
+						label_value = label_value.split(',')
+					if(label_value):
+						label_variables[label_var] = label_value
+			
+		cur_red_cmd = convert_cmd + ' "' + red_gel_ann + '" -font Arial -pointsize 24 '
+		cur_gr_cmd = convert_cmd + ' "' + green_gel_ann + '" -font Arial -pointsize 24 '
+		draw_line_pos_v = [] #the bottom positions of the vertial lines, the top positions are +10 px from bottom
+		draw_line_pos_v2 = [] #the bottom positions of the shorter vertial lines, the top positions are +5 px from bottom
+		draw_line_pos_h_st = {} #the left positions of the horizontal lines
+		draw_line_pos_h_end = {} #the right positions of the horizontal lines
+		doxy_labels = label_variables["DOXYCYCLINE"]
+		for k,amt in enumerate(doxy_labels):
+			x_pos = (float(band_info[str(k+2)][0]) + float(band_info[str(k+2)][1])) / 2
+			x_pos = int(scale_x*(x_pos/image_width))
+			x_pos = (x_pos+155)-10
+			if(k == 0):
+				draw_line_pos_v.append((x_pos-5,145))
+				draw_line_pos_h_st['1'] = (x_pos-5,135)
+			if(k == 2):
+				draw_line_pos_v.append((x_pos+20,145))
+				draw_line_pos_h_end['1'] = (x_pos+20,135)
+			if(k == 3):
+				draw_line_pos_v.append((x_pos-5,50))
+				draw_line_pos_h_st['3'] = (x_pos-5,40)
+				draw_line_pos_v2.append((x_pos+10,145))
+			if(k == 4):
+				draw_line_pos_v.append((x_pos-5,145))
+				draw_line_pos_h_st['2'] = (x_pos-5,135)
+			if(k == 5):
+				draw_line_pos_v.append((x_pos+20,145))
+				draw_line_pos_h_end['2'] = (x_pos+20,135)
+			if(k == 6):
+				draw_line_pos_v.append((x_pos+20,50))
+				draw_line_pos_h_end['3'] = (x_pos+20,40)
+				draw_line_pos_v2.append((x_pos+10,145))
+				
+			amt = str(amt)
+			amt = amt.strip()
+			
+			x_pos = x_pos + 20
+			cur_red_cmd += '-annotate 270x270+' + str(x_pos) + '+205 "' + amt + '" '
+			cur_gr_cmd += '-annotate 270x270+' + str(x_pos) + '+205 "' + amt + '" '
+			
+		cur_red_cmd +=  '"' + red_gel_ann + '"'
+		cur_gr_cmd +=  '"' + green_gel_ann + '"'
+		os.system(cur_red_cmd)
+		os.system(cur_gr_cmd)
+		
+		#create the rest of the amounts labeling
+		#(the part above the doxy amounts)
+		#the lines:
+		#convert annotation2.png -stroke black -strokewidth 3 -draw "line 50,150 50,140" annotation2_.png
+		cur_red_cmd = convert_cmd + ' "' + red_gel_ann + '" -stroke black -strokewidth 3 '
+		cur_gr_cmd = convert_cmd + ' "' + green_gel_ann + '" -stroke black -strokewidth 3 '
+		for pos in draw_line_pos_v:
+			cur_red_cmd += '-draw "line ' + str(pos[0]) + ',' + str(pos[1]) + ' ' + str(pos[0]) + ',' + str(pos[1]-10) + '" '
+			cur_gr_cmd += '-draw "line ' + str(pos[0]) + ',' + str(pos[1]) + ' ' + str(pos[0]) + ',' + str(pos[1]-10) + '" '
+		
+		for pos in draw_line_pos_v2:
+			cur_red_cmd += '-draw "line ' + str(pos[0]) + ',' + str(pos[1]) + ' ' + str(pos[0]) + ',' + str(pos[1]-5) + '" '
+			cur_gr_cmd += '-draw "line ' + str(pos[0]) + ',' + str(pos[1]) + ' ' + str(pos[0]) + ',' + str(pos[1]-5) + '" '
+		
+		for line in draw_line_pos_h_st.keys():
+			pos_st = draw_line_pos_h_st[line]
+			pos_end = draw_line_pos_h_end[line]
+			cur_red_cmd += '-draw "line ' + str(pos_st[0]) + ',' + str(pos_st[1]) + ' ' + str(pos_end[0]) + ',' + str(pos_end[1]) + '" '
+			cur_gr_cmd += '-draw "line ' + str(pos_st[0]) + ',' + str(pos_st[1]) + ' ' + str(pos_end[0]) + ',' + str(pos_end[1]) + '" '
+		
+		cur_red_cmd +=  '"' + red_gel_ann + '"'
+		cur_gr_cmd +=  '"' + green_gel_ann + '"'
+		os.system(cur_red_cmd)
+		os.system(cur_gr_cmd)
+		
+		#the text:
+		input_perc = label_variables["INPUT-PERCENT"]
+		if(int(input_perc) == float(input_perc)):
+			input_perc = int(input_perc)
+		cur_red_cmd = convert_cmd + ' "' + red_gel_ann + '" -font Arial -pointsize 26 '
+		cur_gr_cmd = convert_cmd + ' "' + green_gel_ann + '" -font Arial -pointsize 26 '
+		#20%
+		mid = (draw_line_pos_v[0][0] + draw_line_pos_v[1][0]) / 2
+		cur_red_cmd += '-annotate 0x0+' + str(mid-25) + '+100 "' + str(input_perc) + '%" '
+		cur_gr_cmd += '-annotate 0x0+' + str(mid-25) + '+100 "' + str(input_perc) + '%" '
+		#Input
+		cur_red_cmd += '-annotate 0x0+' + str(mid-30) + '+125 "Input" '
+		cur_gr_cmd += '-annotate 0x0+' + str(mid-30) + '+125 "Input" '
+		#IP
+		mid = (draw_line_pos_v[2][0] + draw_line_pos_v[5][0]) / 2
+		cur_red_cmd += '-annotate 0x0+' + str(mid-12) + '+35 "IP" '
+		cur_gr_cmd += '-annotate 0x0+' + str(mid-12) + '+35 "IP" '
+		#CDI Ab
+		mid = (draw_line_pos_v[3][0] + draw_line_pos_v[4][0]) / 2
+		cur_red_cmd += '-annotate 270x270+' + str(mid+10) + '+130 "CDI Ab" '
+		cur_gr_cmd += '-annotate 270x270+' + str(mid+10) + '+130 "CDI Ab" '
+		#IgG
+		mid = draw_line_pos_v2[0][0]
+		cur_red_cmd += '-annotate 270x270+' + str(mid+10) + '+130 "IgG" '
+		cur_gr_cmd += '-annotate 270x270+' + str(mid+10) + '+130 "IgG" '
+		#FLAG
+		mid = draw_line_pos_v2[1][0]
+		cur_red_cmd += '-annotate 270x270+' + str(mid+10) + '+130 "FLAG" ' 
+		cur_gr_cmd += '-annotate 270x270+' + str(mid+10) + '+130 "FLAG" '
+		
+		cur_red_cmd +=  '"' + red_gel_ann + '"'
+		cur_gr_cmd +=  '"' + green_gel_ann + '"'
+		os.system(cur_red_cmd)
+		os.system(cur_gr_cmd)
+		
 		#create/add caption -  red
-		caption_text = (caption_text_red1 + labels['Gene name'][i] + ' (' + labels['Acession number'][i] + ')' + 
+		caption_text_red1_ = caption_text_red1.replace("HeLa", label_variables["CELL-LINE"])
+		caption_text = (caption_text_red1_ + labels['Gene name'][i] + ' (' + labels['Acession number'][i] + ')' + 
 				caption_text_red2 + labels['Gene name'][i] + ' (cloneID# ' + labels['CDI#'][i] + ')' +
 				caption_text_red3) #+ labels['Gene name'][i] + ' (Catalog #' + labels['CDI#'][i] + ')' +
 				#caption_text4 + labels['Gene name'][i] + caption_text5)
@@ -1284,7 +1468,8 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 		os.system(convert_cmd + ' "' + red_gel_ann + '" "' + temp_caption_fname + '" -gravity west -append "' + red_gel_ann_cap + '"') #add caption to bottom of gel image		
 		
 		#create/add caption -  green
-		caption_text = (caption_text_green1 + labels['Gene name'][i] + ' (' + labels['Acession number'][i] + ')' + 
+		caption_text_green1_ = caption_text_green1.replace("HeLa", label_variables["CELL-LINE"])
+		caption_text = (caption_text_green1_ + labels['Gene name'][i] + ' (' + labels['Acession number'][i] + ')' + 
 				caption_text_green2 + labels['Gene name'][i] + ' (cloneID# ' + labels['CDI#'][i] + ')' +
 				caption_text_green3 + labels['Gene name'][i] + ' (cloneID# ' + labels['CDI#'][i] + ')' +
 				caption_text_green4) # + labels['Gene name'][i] + caption_text5)
