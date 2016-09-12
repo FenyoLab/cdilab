@@ -1225,15 +1225,20 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 		green_gel_masses = temp_dir + '/_' + root + '-g_masses.jpg'
 		red_gel_ann = temp_dir + '/_' + root + '-r_masses_ann.jpg'
 		green_gel_ann = temp_dir + '/_' + root + '-g_masses_ann.jpg'
-		temp_caption_fname = temp_dir + '/caption.jpg'
+		temp_red_caption_fname = temp_dir + '/red_caption.jpg'
+		temp_green_caption_fname = temp_dir + '/green_caption.jpg'
 		red_gel_ann_cap = temp_dir + '/_' + root + '-r_masses_ann_cap.jpg'
 		green_gel_ann_cap = temp_dir + '/_' + root + '-g_masses_ann_cap.jpg'
 		temp_toplabel_fname = temp_dir + '/toplabel.jpg'
 		red_gel_ann_cap_top = temp_dir + '/_' + root + '-r_masses_ann_cap_top.jpg'
 		green_gel_ann_cap_top = temp_dir + '/_' + root + '-g_masses_ann_cap_top.jpg'
 		
-		labels_filename_final_r = out_dir + '/' + labels['CDI#'][i] + '_' + labels['Filter_IP'][i] + '_IP.png'
-		labels_filename_final_g = out_dir + '/' + labels['CDI#'][i] + '_' + labels['Filter_WB'][i] + '_WB.png'
+		cdi_num = str(labels['CDI#'][i])
+		filter_ip = str(labels['Filter_IP'][i])
+		filter_wb = str(labels['Filter_WB'][i])
+			
+		labels_filename_final_r = out_dir + '/' + cdi_num + '_' + filter_ip + '_IP.png'
+		labels_filename_final_g = out_dir + '/' + cdi_num + '_' + filter_wb + '_WB.png'
 		
 		#create gel images, apply min/max pixel and mapping, and stretch the image -> jpg
 		if(tail in exp_dict):
@@ -1458,32 +1463,48 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 		os.system(cur_gr_cmd)
 		
 		#create/add caption -  red
+		gene_name = str(labels['Gene name'][i])
+		acession = str(labels['Acession number'][i])
 		caption_text_red1_ = caption_text_red1.replace("HeLa", label_variables["CELL-LINE"])
-		caption_text = (caption_text_red1_ + labels['Gene name'][i] + ' (' + labels['Acession number'][i] + ')' + 
-				caption_text_red2 + labels['Gene name'][i] + ' (cloneID# ' + labels['CDI#'][i] + ')' +
-				caption_text_red3) #+ labels['Gene name'][i] + ' (Catalog #' + labels['CDI#'][i] + ')' +
+		caption_text = (caption_text_red1_ + gene_name + ' (' + acession + ')' + 
+				caption_text_red2 + gene_name + ' (cloneID# ' + cdi_num + ')' +
+				caption_text_red3) #+ labels['Gene name'][i] + ' (Catalog #' + cdi_num + ')' +
 				#caption_text4 + labels['Gene name'][i] + caption_text5)
-		os.system(convert_cmd + ' -font Arial -pointsize 21 -size 560x -gravity west caption:"' + caption_text + '" "' + temp_caption_fname + '"') #create caption
-		os.system(convert_cmd + ' "' + temp_caption_fname + '" -background white -splice 0x20 "' + temp_caption_fname + '"') #space top of caption
-		os.system(convert_cmd + ' "' + red_gel_ann + '" "' + temp_caption_fname + '" -gravity west -append "' + red_gel_ann_cap + '"') #add caption to bottom of gel image		
+		os.system(convert_cmd + ' -font Arial -pointsize 21 -size 560x -gravity west caption:"' + caption_text + '" "' + temp_red_caption_fname + '"') #create caption
+		os.system(convert_cmd + ' "' + temp_red_caption_fname + '" -background white -splice 0x20 "' + temp_red_caption_fname + '"') #space top of caption
 		
 		#create/add caption -  green
 		caption_text_green1_ = caption_text_green1.replace("HeLa", label_variables["CELL-LINE"])
-		caption_text = (caption_text_green1_ + labels['Gene name'][i] + ' (' + labels['Acession number'][i] + ')' + 
-				caption_text_green2 + labels['Gene name'][i] + ' (cloneID# ' + labels['CDI#'][i] + ')' +
-				caption_text_green3 + labels['Gene name'][i] + ' (cloneID# ' + labels['CDI#'][i] + ')' +
+		caption_text = (caption_text_green1_ + gene_name + ' (' + acession + ')' + 
+				caption_text_green2 + gene_name + ' (cloneID# ' + cdi_num + ')' +
+				caption_text_green3 + gene_name + ' (cloneID# ' + cdi_num + ')' +
 				caption_text_green4) # + labels['Gene name'][i] + caption_text5)
-		os.system(convert_cmd + ' -font Arial -pointsize 21 -size 560x -gravity west caption:"' + caption_text + '" "' + temp_caption_fname + '"') #create caption
-		os.system(convert_cmd + ' "' + temp_caption_fname + '" -background white -splice 0x20 "' + temp_caption_fname + '"') #space top of caption
-		os.system(convert_cmd + ' "' + green_gel_ann + '" "' + temp_caption_fname + '" -gravity west -append "' + green_gel_ann_cap + '"') #add caption to bottom of gel image		
+		os.system(convert_cmd + ' -font Arial -pointsize 21 -size 560x -gravity west caption:"' + caption_text + '" "' + temp_green_caption_fname + '"') #create caption
+		os.system(convert_cmd + ' "' + temp_green_caption_fname + '" -background white -splice 0x20 "' + temp_green_caption_fname + '"') #space top of caption
+		
+		#fix captions by addig space so they are the same size
+		red_cap_img = io.imread(temp_red_caption_fname)
+		gr_cap_img = io.imread(temp_green_caption_fname)
+		if(len(red_cap_img) > len(gr_cap_img)):
+			#add space to green
+			to_add = len(red_cap_img) - len(gr_cap_img)
+			os.system(convert_cmd + ' "' + temp_green_caption_fname + '" -gravity south -background white -splice 0x' + str(to_add) + ' "' + temp_green_caption_fname + '"')
+		elif(len(gr_cap_img) > len(red_cap_img)):
+			#add space to red
+			to_add = len(gr_cap_img) - len(red_cap_img)
+			os.system(convert_cmd + ' "' + temp_red_caption_fname + '" -gravity south -background white -splice 0x' + str(to_add) + ' "' + temp_red_caption_fname + '"')
+		
+		#add fixed captions to red and green
+		os.system(convert_cmd + ' "' + red_gel_ann + '" "' + temp_red_caption_fname + '" -gravity west -append "' + red_gel_ann_cap + '"') #add caption to bottom of gel image		
+		os.system(convert_cmd + ' "' + green_gel_ann + '" "' + temp_green_caption_fname + '" -gravity west -append "' + green_gel_ann_cap + '"') #add caption to bottom of gel image		
 		
 		#create/add top label - red #label
-		toplabel_text = 'Anti-FLAG\\n(' + labels['Gene name'][i] + ')'
+		toplabel_text = 'Anti-FLAG\\n(' + gene_name + ')'
 		os.system(convert_cmd + ' -font Arial -pointsize 36 -size 560x -gravity Center caption:"' + toplabel_text + '" "' + temp_toplabel_fname + '"') #create top label
 		os.system(convert_cmd + ' "' + temp_toplabel_fname + '" "' + red_gel_ann_cap + '" -append "' + red_gel_ann_cap_top + '"') #add top label to image
 		
 		#create/add top label - green
-		toplabel_text = 'Anti-' + labels['Gene name'][i] + '\\n(CloneID#' + labels['CDI#'][i] + ')'
+		toplabel_text = 'Anti-' + gene_name + '\\n(CloneID#' + cdi_num + ')'
 		os.system(convert_cmd + ' -font Arial -pointsize 36 -size 560x -gravity Center caption:"' + toplabel_text + '" "' + temp_toplabel_fname + '"') #create top label
 		os.system(convert_cmd + ' "' + temp_toplabel_fname + '" "' + green_gel_ann_cap + '" -append "' + green_gel_ann_cap_top + '"') #add top label to image		
 		
@@ -1495,7 +1516,10 @@ def label_gels2(directory, labels_filename, annotation_filename, exposure_filena
 	my_zip = zipfile.ZipFile(out_dir + '/labeled_gels.zip', 'w')
 	flist = glob.glob(out_dir + '/*.png')
 	for f in flist:
-	    my_zip.write(f)
+		#open and save again with skimage since image magick png file is not readable by windows photoshop
+		img = io.imread(f)
+		io.imsave(f, img)
+		my_zip.write(f)
 	my_zip.close()
 		
 	#delete temp directory

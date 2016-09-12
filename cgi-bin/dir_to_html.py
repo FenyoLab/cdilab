@@ -118,11 +118,14 @@ def load_html_tree(startpath, show_dir_checks=True):
                 if(not labels.empty):
                     try:
                         gel_index = int(mo.group(1)) #display_name = labels['CDI#'][gel_index] + '_' + labels['Filter_IP'][gel_index]
-                        display_name = labels['CDI#'][gel_index] + '_' + labels['Filter_IP'][gel_index]
-                        display_name2 = labels['CDI#'][gel_index] + '_' + labels['Filter_WB'][gel_index]
-                        if(labels['Filter_IP'][gel_index].startswith('PASS') or labels['Filter_WB'][gel_index].startswith('PASS')):
+                        cdi_num = str(labels['CDI#'][gel_index])
+                        filter_ip = str(labels['Filter_IP'][gel_index])
+                        filter_wb = str(labels['Filter_WB'][gel_index])
+                        display_name = cdi_num + '_' + filter_ip
+                        display_name2 = cdi_num + '_' + filter_wb
+                        if(filter_ip.startswith('PASS') or filter_wb.startswith('PASS')):
                             show_bold = True
-                    except(IOError,KeyError):
+                    except(IOError,KeyError,TypeError):
                         display_name = f
                 else:
                     display_name = f

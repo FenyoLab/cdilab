@@ -13,6 +13,11 @@
 #'mark_collage' 'C:/CDI Labs/Data/12_28_Tests/7-14-2015-1 (2015-12-28-12.17.37)/0000932_01_700.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-14-2015-1 (2015-12-28-12.17.37)/0000932_01_800.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-14-2015-1 (2015-12-28-12.17.37)/_labels.txt' '24' '6' '4' '1' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS' 
 #'mark_collage' 'C:/CDI Labs/Data/12_28_Tests/7-17-2015-2 (2015-12-28-14.27.30)/0000939_01_700.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-17-2015-2 (2015-12-28-14.27.30)/0000939_01_800.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-17-2015-2 (2015-12-28-14.27.30)/_labels.txt' '24' '6' '4' '1' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
 
+#'label_gels2' 'C:/CDI Labs/Data/Test-Version-2/Test NA values in metadata (2016-05-03-13.05.37)' 'C:/CDI Labs/Data/Test-Version-2/Test NA values in metadata (2016-05-03-13.05.37)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Test-Version-2/Test NA values in metadata (2016-05-03-13.05.37)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
+#'label_gels2' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
+#'run_gel_annotation.py' 'clip_and_mark_gels' 'C:/CDI Labs//Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)/_gel_marker_lines.json' '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23' 'C:/Shared Projects/cdilab/cgi-bin' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
+#'label_gels2' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
+
 import sys
 import tifffile as tf
 import gel_annotation as ga

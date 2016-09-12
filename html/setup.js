@@ -1,4 +1,4 @@
-var server = "http://openslice.fenyolab.org"; //"http://localhost"; //"http://openslice.fenyolab.org";  // //"http://localhost"; //"http://openslice.fenyolab.org"; 
+var server = "http://localhost"; //"http://openslice.fenyolab.org"; //"http://localhost"; //"http://openslice.fenyolab.org";  // //"http://localhost"; //"http://openslice.fenyolab.org"; 
 var density_image_resize = 1.5; //the display image is scaled for easier band selection
 var collage_image_resize = .5;
 var r_image_data;
@@ -283,6 +283,12 @@ function calculate_pixel(pixel, min, max)
     return 0;
   }
   
+  //Function is: y = log x, with base b
+  // where x == [pixel - (min-1)] --> so that y == 0  when pixel == min 
+  // and where b == [max - (min-1)] ^ (1/255), which is obtained by
+  // solving for the base b, the formula:
+  // y = log x where x is as above and p is set to max, y is set to 255
+  
   var b = max - (min-1);
   b = Math.pow(b, (1/255));
   var out_pixel = Math.log(pixel-(min-1)) / Math.log(b);
@@ -402,7 +408,7 @@ function loadImageContent_(sourceUrl)
                 }
                 
                 result = /, Max Pixel = (-?[\d\.]+)<\/td><\/tr><tr>/.exec(post_data);
-                var r_max = parseInt(result[1]);
+                var r_max = Math.ceil(parseFloat(result[1])*100)/100; //parseInt(result[1]);
                 if (r_max != -1)
                 {
                         //$( "#spinner-r-max" ).spinner( "value", r_max );
@@ -420,7 +426,7 @@ function loadImageContent_(sourceUrl)
                 }
                 
                 result = /, Max Pixel = (-?[\d\.]+)<\/td><\/tr><\/table>/.exec(post_data);
-                var g_max = parseInt(result[1]);
+                var g_max = Math.ceil(parseFloat(result[1])*100)/100; //parseInt(result[1]);
                 if (g_max != -1)
                 {
                         //$( "#spinner-g-max" ).spinner( "value", g_max );
@@ -442,7 +448,7 @@ function loadImageContent_(sourceUrl)
                         r_image_data = data[4];
                         
                         var r_image_abs_min  = Math.ceil(r_image_min*100)/100;
-                        var r_image_abs_max  = Math.floor(r_image_max);
+                        var r_image_abs_max  = Math.floor(r_image_max*100)/100;
                         if (default_readout)
                         {
                                 r_image_cutoff_min = r_image_abs_min;
@@ -466,8 +472,7 @@ function loadImageContent_(sourceUrl)
                                         var new_min = parseFloat(event.target.value);
                                         if (new_min >= r_image_cutoff_max)
                                         {//don't allow adjustment of min above max
-                                          //$( "#spinner-r-min" ).spinner( value, r_image_cutoff_max );
-                                          //$("#spinner-r-min-val").text('min pixel: ' + r_image_cutoff_max.toString());
+                                                
                                         }
                                         else
                                         {
@@ -483,8 +488,6 @@ function loadImageContent_(sourceUrl)
                                         var new_min = ui.value;
                                         if (new_min >= r_image_cutoff_max)
                                         {//don't allow adjustment of min above max
-                                          //$( "#spinner-r-min" ).spinner( value, r_image_cutoff_max );
-                                          //$("#spinner-r-min-val").text('min pixel: ' + r_image_cutoff_max.toString());
                                           
                                         }
                                         else
@@ -499,21 +502,18 @@ function loadImageContent_(sourceUrl)
                         
                         //max red spinner
                         $("#spinner-r-max-val").text('max pixel: ' + r_image_cutoff_max.toString());
-                        var min_max = Math.ceil(r_image_abs_min);
                         
-                        //$( "#spinner-r-max" ).spinner({ min: min_max, max: r_image_abs_max, step: 1 });
-                        $( "#spinner-r-max" ).spinner({ min: 0, step: 1 });
+                        $( "#spinner-r-max" ).spinner({ min: 0, step: .01 });
                         
                         $( "#spinner-r-max" ).spinner( "value", r_image_cutoff_max );
                         $( "#spinner-r-max" ).spinner({
                                 change: function( event, ui )
                                 {
                                         //change image min cutoff and re-display image
-                                        var new_max = parseInt(event.target.value);
+                                        var new_max = parseFloat(event.target.value);
                                         if (new_max <= r_image_cutoff_min)
                                         {//don't allow adjustment of max below min
-                                          //$( "#spinner-r-max" ).spinner( value, r_image_cutoff_min );
-                                          //$("#spinner-r-max-val").text('max pixel: ' + r_image_cutoff_min.toString());
+                                          
                                         }
                                         else
                                         {
@@ -529,8 +529,6 @@ function loadImageContent_(sourceUrl)
                                         var new_max = ui.value;
                                         if (new_max <= r_image_cutoff_min)
                                         {//don't allow adjustment of max below min
-                                          //$( "#spinner-r-max" ).spinner( value, r_image_cutoff_min );
-                                          //$("#spinner-r-max-val").text('max pixel: ' + r_image_cutoff_min.toString());
                                           
                                         }
                                         else
@@ -587,7 +585,7 @@ function loadImageContent_(sourceUrl)
                                 g_image_data = data[4];
                                 
                                 var g_image_abs_min  = Math.ceil(g_image_min*100)/100;
-                                var g_image_abs_max  = Math.floor(g_image_max);
+                                var g_image_abs_max  = Math.floor(g_image_max*100)/100;
                                 if (default_readout)
                                 {
                                         g_image_cutoff_min = g_image_abs_min;
@@ -600,7 +598,6 @@ function loadImageContent_(sourceUrl)
                                 //min green spinner
                                 $("#spinner-g-min-val").text('min pixel: ' + g_image_cutoff_min.toString());
                                 
-                                //$( "#spinner-g-min" ).spinner({ min: g_image_abs_min, max: g_image_abs_max, step: .01 });
                                 $( "#spinner-g-min" ).spinner({ min: 0, step: .01 });
                                 
                                 $( "#spinner-g-min" ).spinner( "value", g_image_cutoff_min );
@@ -611,14 +608,12 @@ function loadImageContent_(sourceUrl)
                                                 var new_min = parseFloat(event.target.value);
                                                 if (new_min >= g_image_cutoff_max)
                                                 {//don't allow adjustment of min above max
-                                                  //$( "#spinner-g-min" ).spinner( value, g_image_cutoff_max );
-                                                  //$("#spinner-g-min-val").text('min pixel: ' + g_image_cutoff_max.toString());
+                                                  
                                                 }
                                                 else
                                                 {
                                                   g_image_cutoff_min = new_min;
                                                   write_to_canvas('canvas-g', g_image_width, g_image_length, g_image_cutoff_min, g_image_cutoff_max, g_image_data);  
-                                                  
                                                 }
                                                 
                                                 
@@ -629,42 +624,42 @@ function loadImageContent_(sourceUrl)
                                                 var new_min = ui.value;
                                                 if (new_min >= g_image_cutoff_max)
                                                 {//don't allow adjustment of min above max
-                                                  //$( "#spinner-g-min" ).spinner( value, g_image_cutoff_max );
-                                                  //$("#spinner-g-min-val").text('min pixel: ' + g_image_cutoff_max.toString());
-                                                  
+                                                   
                                                 }
                                                 else
                                                 {
                                                   g_image_cutoff_min = new_min;
-                                                  write_to_canvas('canvas-g', g_image_width, g_image_length, g_image_cutoff_min, g_image_cutoff_max, g_image_data);  
-                                                  
+                                                  write_to_canvas('canvas-g', g_image_width, g_image_length, g_image_cutoff_min, g_image_cutoff_max, g_image_data);    
                                                 }
-                                                
-                                                
+                                               
                                         }
                                 });
                                 
                                 //max green spinner
                                 $("#spinner-g-max-val").text('max pixel: ' + g_image_cutoff_max.toString());
-                                min_max = Math.ceil(g_image_abs_min);
                                 
-                                //$( "#spinner-g-max" ).spinner({ min: min_max, max: g_image_abs_max, step: 1 });
-                                $( "#spinner-g-max" ).spinner({ min: 0, step: 1 });
+                                //if (g_image_cutoff_max > 10) { $( "#spinner-g-max" ).spinner({ min: 0, step: 1 }); }
+                                //else { $( "#spinner-g-max" ).spinner({ min: 0, step: .01 }); }
+                                $( "#spinner-g-max" ).spinner({ min: 0, step: .01 });
                                 
                                 $( "#spinner-g-max" ).spinner( "value", g_image_cutoff_max );
-                                 $( "#spinner-g-max" ).spinner({
+                                
+                                $( "#spinner-g-max" ).spinner({
                                         change: function( event, ui )
                                         {
                                                 //change image min cutoff and re-display image
-                                                var new_max = parseInt(event.target.value);
+                                                var new_max = parseFloat(event.target.value);
                                                 if (new_max <= g_image_cutoff_min)
                                                 {//don't allow adjustment of max below min
-                                                  //$( "#spinner-g-max" ).spinner( value, g_image_cutoff_min );
-                                                  //$("#spinner-g-max-val").text('max pixel: ' + g_image_cutoff_min.toString());
+                                                        
                                                 }
                                                 else
                                                 {
                                                   g_image_cutoff_max = new_max;
+                                                  
+                                                  //if (g_image_cutoff_max > 10) { $( "#spinner-g-max" ).spinner({ min: 0, step: 1 }); }
+                                                  //else { $( "#spinner-g-max" ).spinner({ min: 0, step: .01 }); }
+                                                  
                                                   write_to_canvas('canvas-g', g_image_width, g_image_length, g_image_cutoff_min, g_image_cutoff_max, g_image_data);    
                                                   
                                                 }
@@ -676,13 +671,15 @@ function loadImageContent_(sourceUrl)
                                                 var new_max = ui.value;
                                                 if (new_max <= g_image_cutoff_min)
                                                 {//don't allow adjustment of max below min
-                                                  //$( "#spinner-g-max" ).spinner( value, g_image_cutoff_min );
-                                                  //$("#spinner-g-max-val").text('max pixel: ' + g_image_cutoff_min.toString());
                                                   
                                                 }
                                                 else
                                                 {
                                                   g_image_cutoff_max = new_max;
+                                                  
+                                                  //if (g_image_cutoff_max > 10) { $( "#spinner-g-max" ).spinner({ min: 0, step: 1 }); }
+                                                  //else { $( "#spinner-g-max" ).spinner({ min: 0, step: .01 }); }
+                                                  
                                                   write_to_canvas('canvas-g', g_image_width, g_image_length, g_image_cutoff_min, g_image_cutoff_max, g_image_data);    
                                                   
                                                 }

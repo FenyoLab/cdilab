@@ -1,33 +1,65 @@
-#!C:\WinPython-64bit-2.7.5.3\python-2.7.5.amd64\python
+#!/local/apps/python/2.7.7/bin/python
+#C:\WinPython-64bit-2.7.5.3\python-2.7.5.amd64\python
 
-import sys
-import os
-import numpy as np
-import gel_annotation as ga
-import subprocess
-#import gel_signal as gs
-import pandas as pd
-import image_tools as it
+#import sys
+#import os
+#import numpy as np
+#import gel_annotation as ga
+#import subprocess
+##import gel_signal as gs
+#import pandas as pd
+#import image_tools as it
+#from skimage import io
+#import tifffile as tf
+#import math
+#import matplotlib
+#matplotlib.use('agg')
+#import matplotlib.pyplot as plt
+#import glob
+
 from skimage import io
-import tifffile as tf
-import math
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-import glob
+import cgi
+import cgitb
+
+print "Content-Type: text/html"
+print
+print '<!DOCTYPE html>'
+print '<html><head><title>CDI Laboratories - Gel Image Processing and Analysis </title>'
+print '</head><body>'
+print "Success 1!"
+temp_red_caption_fname = "/var/www/cdilabs_data/Data/Feb-march 2016/3-29-2016 (2016-04-13-12.56.09)/_labeled-2016-05-23-14.44.15-TEMP/red_caption.jpg"
+temp_green_caption_fname = "/var/www/cdilabs_data/Data/Feb-march 2016/3-29-2016 (2016-04-13-12.56.09)/_labeled-2016-05-23-14.44.15-TEMP/green_caption.jpg"
+red_cap_img = io.imread(temp_red_caption_fname)
+gr_cap_img = io.imread(temp_green_caption_fname)
+
+print red_cap_img.shape
+
+print len(red_cap_img)
+
+#if(len(red_cap_img) > len(gr_cap_img)):
+#        #add space to green
+#        to_add = len(red_cap_img) - len(gr_cap_img)
+#        #os.system(convert_cmd + ' "' + temp_green_caption_fname + '" -gravity south -background white -splice 0x' + str(to_add) + ' "' + temp_green_caption_fname + '"')
+#elif(len(gr_cap_img) > len(red_cap_img)):
+#        #add space to red
+#        to_add = len(gr_cap_img) - len(red_cap_img)
+#        #os.system(convert_cmd + ' "' + temp_red_caption_fname + '" -gravity south -background white -splice 0x' + str(to_add) + ' "' + temp_red_caption_fname + '"')
+
+print "Success 2!"
+print "</body></html>"
+
 
 #os.access("C:/temp/Test?")
 
-
-gel_dir = "C:\CDI Labs\\Data\\Test-10_30_15\\Test - flip labels (2015-10-30-16.41.47)"
-if(os.path.isfile(gel_dir + '/' + 'blah.txt')):
-    os.remove(gel_dir + '/' + 'blah.txt')
-
-txt_files = glob.glob(gel_dir + '/*.txt')
-for txt_f in txt_files:
-    (head, tail) = os.path.split(txt_f)
-    if(not tail.startswith('_') and tail != "run-log.txt"):
-        print txt_f
+#gel_dir = "C:\CDI Labs\\Data\\Test-10_30_15\\Test - flip labels (2015-10-30-16.41.47)"
+#if(os.path.isfile(gel_dir + '/' + 'blah.txt')):
+#    os.remove(gel_dir + '/' + 'blah.txt')
+#
+#txt_files = glob.glob(gel_dir + '/*.txt')
+#for txt_f in txt_files:
+#    (head, tail) = os.path.split(txt_f)
+#    if(not tail.startswith('_') and tail != "run-log.txt"):
+#        print txt_f
         #os.remove(txt_f)
         #break
 

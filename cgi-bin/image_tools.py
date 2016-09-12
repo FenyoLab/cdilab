@@ -89,6 +89,11 @@ def crop_image_json(new_width, new_height, x_offset, y_offset, new_file, image):
     cropped_image = image[y_offset:y_offset+new_height,x_offset:x_offset+new_width]
                        
     pixels = cropped_image.flatten()
+    if(max(pixels) == float('inf')): #if inf is in the data, change it to 2nd highest value
+        pixels_ = pixels.copy()
+        pixels_[pixels_ == float('inf')] = 0
+        new_max = max(pixels_)
+        pixels[pixels == float('inf')] = new_max
     pixels = pixels.tolist()
     json_data = [min(pixels), max(pixels), new_width, new_height, pixels]
     #save as json file

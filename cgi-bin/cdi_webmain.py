@@ -1,8 +1,6 @@
 #!C:\WinPython-32bit-2.7.6.3\python-2.7.6\python
 #!/local/apps/python/2.7.7/bin/python
 
-
-
 from datetime import datetime
 import sys
 import os
@@ -35,7 +33,7 @@ settings_file = './settings.txt'
 if(DEBUG_VERSION): #for cgi debugging
     sys.path.append('C:\\Komodo-PythonRemoteDebugging-8.5.3-83298-win32-x86\\pythonlib') 
     from dbgp.client import brk
-    brk(host="localhost", port=50761) #sets hard breakpoint (port number should match value for Port from 'Debug->Listener Status' in Komodo)
+    brk(host="localhost", port=51460) #sets hard breakpoint (port number should match value for Port from 'Debug->Listener Status' in Komodo)
 
 def read_settings():
     try:
@@ -601,7 +599,7 @@ else:
             labels = labels.drop('Cell-line',1)
         if('Input-percent' in labels.columns):
             labels = labels.drop('Input-percent',1)
-        labels = labels.dropna()
+        labels = labels.dropna(how='all')
         labels = labels.drop([labels.columns[0]], axis=1)
         
         
@@ -619,12 +617,13 @@ else:
             if(mo): i = int(mo.group(1))
             else: continue #something wrong
             
-            pass_red = labels['Filter_IP'][i]
-            if(pass_red.upper().startswith('FAIL')): continue #green depends on red 
+            pass_red = str(labels['Filter_IP'][i])
+            if(pass_red.upper().startswith('PASS')): pass_red = True #continue #green depends on red
+            else: pass_red = False
             
-            pass_green = labels['Filter_WB'][i]
-            if(pass_green.upper().startswith('FAIL')): pass_green = False
-            else: pass_green = True
+            pass_green = str(labels['Filter_WB'][i])
+            if(pass_green.upper().startswith('PASS')): pass_green = True
+            else: pass_green = False
             
             #load green channel hdri image for this gel
             if(pass_green):
@@ -649,7 +648,8 @@ else:
                             labels['Signal-RL'+str(key-1)] = 0. #initialize
                             
                     if(band_info[str(key)][7] == '1'):
-                        labels['Signal-RL'+str(key-1)][i] = float(band_info[str(key)][6])
+                        if(pass_red):
+                            labels['Signal-RL'+str(key-1)][i] = float(band_info[str(key)][6])
                         if(pass_green):
                             rect_x1 = int(band_info[str(key)][0])
                             rect_x2 = int(band_info[str(key)][1])
@@ -688,7 +688,7 @@ else:
             
         #then copy it as densitometry (<date>).txt (tab delimited format)
         date=datetime.now().strftime("%Y-%m-%d-%H.%M.%S")
-        labels.to_csv(SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + 'densitometry (' + date + ').txt', sep='\t', index=True)
+        labels.to_csv(SETTINGS_TABLE['LOCAL_DATA'] + '/' + gel_dir + '/' + 'densitometry (' + date + ').txt', sep='\t', index=True, na_rep='NA')
         
         display_home_page(msg)
         
