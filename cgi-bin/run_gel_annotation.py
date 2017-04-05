@@ -1,22 +1,20 @@
 #!/local/apps/python/2.7.7/bin/python
 
-#'mark_collage' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015 - 2 (2015-07-31-11.52.40)/0000759_01_700.TIF' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015 - 2 (2015-07-31-11.52.40)/0000759_01_800.TIF' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015 - 2 (2015-07-31-11.52.40)/_labels.txt' '24' '6' '4' '1' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'clip_and_mark_gels' 'C:/CDI Labs//Data/Removing TIFF/02-06-2015 - 2 (2015-07-31-11.52.40)/_gel_marker_lines.json' 'C:/Shared Projects/cdilab/cgi-bin' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'label_gels2' 'C:/CDI Labs//Data/Removing TIFF/02-06-2015 - 2 (2015-07-31-11.52.40)' 'C:/CDI Labs//Data/Removing TIFF/02-06-2015 - 2 (2015-07-31-11.52.40)/_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs//Data/Removing TIFF/02-06-2015 - 2 (2015-07-31-11.52.40)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-
-#'mark_collage' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015-TEST2 (2015-08-09-22.19.12)/0000759_01_700.TIF' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015-TEST2 (2015-08-09-22.19.12)/0000759_01_800.TIF' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015-TEST2 (2015-08-09-22.19.12)/_labels.txt' '24' '6' '4' '1' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#clip_and_mark_gels' 'C:/CDI Labs//Data/Removing TIFF/02-06-2015-TEST1 (2015-08-06-09.55.44)/_gel_marker_lines.json' 'C:/Shared Projects/cdilab/cgi-bin' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'label_gels2' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015-TEST1 (2015-08-06-09.55.44)' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015-TEST1 (2015-08-06-09.55.44)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Removing TIFF/02-06-2015-TEST1 (2015-08-06-09.55.44)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'clip_and_mark_gels' 'C:/CDI Labs//Data/Test-10_30_15/Test - flip labels (2015-10-30-16.41.47)/_gel_marker_lines.json' '0,1' 'C:/Shared Projects/cdilab/cgi-bin' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'label_gels2' 'C:/CDI Labs/Data/Test-10_30_15/Test - flip labels (2015-10-30-16.41.47)' 'C:/CDI Labs/Data/Test-10_30_15/Test - flip labels (2015-10-30-16.41.47)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Test-10_30_15/Test - flip labels (2015-10-30-16.41.47)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'label_gels2' 'C:/CDI Labs/C:/CDI Labs/Data/Test-10_30_15/Test - flip labels (2015-10-30-16.41.47)' 'C:/CDI Labs/C:/CDI Labs/Data/Test-10_30_15/Test - flip labels (2015-10-30-16.41.47)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/C:/CDI Labs/Data/Test-10_30_15/Test - flip labels (2015-10-30-16.41.47)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'mark_collage' 'C:/CDI Labs/Data/12_28_Tests/7-14-2015-1 (2015-12-28-12.17.37)/0000932_01_700.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-14-2015-1 (2015-12-28-12.17.37)/0000932_01_800.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-14-2015-1 (2015-12-28-12.17.37)/_labels.txt' '24' '6' '4' '1' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS' 
-#'mark_collage' 'C:/CDI Labs/Data/12_28_Tests/7-17-2015-2 (2015-12-28-14.27.30)/0000939_01_700.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-17-2015-2 (2015-12-28-14.27.30)/0000939_01_800.TIF' 'C:/CDI Labs/Data/12_28_Tests/7-17-2015-2 (2015-12-28-14.27.30)/_labels.txt' '24' '6' '4' '1' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-
-#'label_gels2' 'C:/CDI Labs/Data/Test-Version-2/Test NA values in metadata (2016-05-03-13.05.37)' 'C:/CDI Labs/Data/Test-Version-2/Test NA values in metadata (2016-05-03-13.05.37)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Test-Version-2/Test NA values in metadata (2016-05-03-13.05.37)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'label_gels2' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'run_gel_annotation.py' 'clip_and_mark_gels' 'C:/CDI Labs//Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)/_gel_marker_lines.json' '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23' 'C:/Shared Projects/cdilab/cgi-bin' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
-#'label_gels2' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)//_labels.txt' 'C:/Shared Projects/cdilab/cgi-bin/annotation2.png' 'C:/CDI Labs/Data/Test-Version-2/Test Metadata Error (2016-05-04-14.53.55)/_exposure.txt' 'C:/ImageMagick-6.8.9-16bit-HDRI/VisualMagick/bin' 'WINDOWS'
+#    Copyright (C) 2017  Sarah Keegan
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 import sys
 import tifffile as tf

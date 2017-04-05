@@ -1,5 +1,20 @@
 #!/local/apps/python/2.7.7/bin/python
-##C:\WinPython-64bit-2.7.5.3\python-2.7.5.amd64\python
+
+#    Copyright (C) 2017  Sarah Keegan
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 import pandas as pd
 import numpy as np
@@ -59,11 +74,6 @@ def get_signal(df_image, rect_x1, rect_x2, rect_y1, rect_y2):
         for y in range(rect_y1,rect_y2+1):
             diff = float((df_image[y][x]).rstrip('%'))/100 - background
             if(diff > 0): total_signal += diff
-            
-    #f = open('C:/temp/get_signal.txt', 'a')
-    #f.write(str([rect_x1, rect_x2, rect_y1, rect_y2, background, total_signal]))
-    #f.write('\n\n')
-    #f.close()
         
     return total_signal
 
@@ -79,9 +89,6 @@ def load_image(image_file):
 #crop as directed and save the file
 #also create the json array and save 
 def crop_image_json(new_width, new_height, x_offset, y_offset, new_file, image):
-    #f = open("C:/temp/json.txt", "a")
-    #f.write(new_file + ', ' + str(new_width) + ', ' + str(new_height) + ', ' +  str(x_offset) + ', ' +  str(y_offset) + ', ' +  str(len(image)) + ', ' +  str(len(image[0])) + '\n')
-    #f.close()
     
     if((x_offset + new_width) > len(image[0])): new_width = len(image[0])-x_offset
     if((y_offset + new_height) > len(image)): new_height = len(image)-y_offset
@@ -192,7 +199,5 @@ def hdri_to_tiff_and_combine(gr_hdri, red_hdri, new_tiff, new_tiff_std):
     
     io.imsave(new_tiff_std, image_flat_jpg)
     
-    #new_jpg = "C:/temp/temp.jpg"
-    #io.imsave(new_jpg, image_flat_jpg)
     return (height, width)
     
