@@ -191,7 +191,10 @@ $(document).ready(function()
                         //refresh the entire page.
                         //alert("Finished");
                         //$('#dialog_clip_and_mark').dialog("close");
-                        window.location.href = server + "/cdi-cgi/cdi_webmain.py";
+                        //window.location.href = server + "/cdi-cgi/cdi_webmain.py";
+
+                        var url = window.location;
+                        window.location.href = url; //server + "/cdi-cgi/cdi_webmain.py";
                 });
         });
 

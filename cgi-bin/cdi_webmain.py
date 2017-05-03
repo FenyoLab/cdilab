@@ -313,8 +313,8 @@ else:
                     os.mkdir(SETTINGS_TABLE['LOCAL_DATA'] + '/' + data_folder + '/' + new_dir_name)
                 except IOError as e:
                     msg = "I/O error({0}): {1}".format(e.errno, e.strerror) + '.'
-                except WindowsError as e:
-                    msg = "Windows error({0}): {1}".format(e.errno, e.strerror) + '.'
+                #except WindowsError as e:
+                #    msg = "Windows error({0}): {1}".format(e.errno, e.strerror) + '.'
                 #exception here for bad linux file names?
         else:
             msg = "Please do not use the following characters in a directory name: / \\ : * ? \" ' &lt; &gt; |"
